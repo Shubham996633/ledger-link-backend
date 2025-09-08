@@ -1,0 +1,35 @@
+{
+  "name": "ledger-link-backend",
+  "version": "1.0.0",
+  "description": "Decentralized platform integrating Ethereum smart contracts with Node.js backend",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "contracts"
+  ],
+  "scripts": {
+    "dev": "pnpm --filter backend dev",
+    "build": "pnpm --filter backend build",
+    "test": "pnpm --filter backend test",
+    "lint": "pnpm --filter backend lint",
+    "format": "pnpm --filter backend format",
+    "contracts:compile": "pnpm --filter contracts compile",
+    "contracts:deploy": "pnpm --filter contracts deploy",
+    "contracts:deploy:goerli": "pnpm --filter contracts deploy:all:goerli",
+    "contracts:deploy:arbitrum": "pnpm --filter contracts deploy:all:arbitrum-goerli",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:build": "docker-compose build"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0",
+    "prettier": "^3.1.0",
+    "eslint": "^8.55.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  },
+  "packageManager": "pnpm@8.15.0"
+}

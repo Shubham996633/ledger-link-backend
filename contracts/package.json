@@ -1,0 +1,37 @@
+{
+  "name": "@ledger-link/contracts",
+  "version": "1.0.0",
+  "description": "Ledger Link Smart Contracts",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:goerli": "hardhat run scripts/deploy.js --network goerli",
+    "deploy:arbitrum-goerli": "hardhat run scripts/deploy.js --network arbitrumGoerli",
+    "deploy:all:goerli": "hardhat run scripts/deploy-all.js --network goerli",
+    "deploy:all:arbitrum-goerli": "hardhat run scripts/deploy-all.js --network arbitrumGoerli",
+    "verify:goerli": "hardhat verify --network goerli",
+    "verify:arbitrum-goerli": "hardhat verify --network arbitrumGoerli",
+    "coverage": "hardhat coverage",
+    "size": "hardhat size-contracts"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "@nomicfoundation/hardhat-network-helpers": "^1.0.8",
+    "@nomicfoundation/hardhat-chai-matchers": "^2.0.2",
+    "@nomicfoundation/hardhat-ethers": "^3.0.4",
+    "@nomicfoundation/hardhat-verify": "^2.0.0",
+    "@typechain/ethers-v6": "^0.4.3",
+    "@typechain/hardhat": "^9.1.0",
+    "@types/chai": "^4.3.5",
+    "@types/mocha": "^10.0.1",
+    "chai": "^4.3.7",
+    "ethers": "^6.8.1",
+    "hardhat": "^2.19.0",
+    "hardhat-gas-reporter": "^1.0.9",
+    "solidity-coverage": "^0.8.5",
+    "typechain": "^8.3.1"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.0"
+  }
+}
