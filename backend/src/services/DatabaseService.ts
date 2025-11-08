@@ -1,5 +1,5 @@
 import { DataSource } from 'typeorm';
-import { config } from '@/config/database';
+import { dataSourceOptions } from '@/config/database';
 import { logger } from '@/utils/logger';
 
 export class DatabaseService {
@@ -17,7 +17,7 @@ export class DatabaseService {
 
   public async initialize(): Promise<void> {
     try {
-      this.dataSource = new DataSource(config);
+      this.dataSource = new DataSource(dataSourceOptions);
       await this.dataSource.initialize();
       logger.info('Database connection established successfully');
     } catch (error) {

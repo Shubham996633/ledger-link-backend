@@ -11,18 +11,27 @@ import { logger } from '@/utils/logger';
 
 const router = Router();
 
-// Initialize services with proper dependency injection
-const dbService = DatabaseService.getInstance();
-const transactionRepository = new TransactionRepository(dbService.getDataSource());
-const blockchainService = new BlockchainService(transactionRepository);
+// Lazy initialization
+let transactionRepository: TransactionRepository;
+let blockchainService: BlockchainService;
+
+function getServices() {
+  if (!transactionRepository) {
+    const dbService = DatabaseService.getInstance();
+    transactionRepository = new TransactionRepository(dbService.getDataSource());
+    blockchainService = new BlockchainService(transactionRepository);
+  }
+  return { transactionRepository, blockchainService };
+}
 
 /**
  * POST /api/transactions
  * Create a new transaction
  */
 router.post('/', authenticateToken, transactionRateLimiter, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  const { blockchainService } = getServices();
   const transactionData = validateAndSanitize(validationSchemas.createTransaction, req.body);
-  
+
   const userId = req.user!.userId;
   
   // TODO: Get private key from secure storage or user input
@@ -80,12 +89,13 @@ router.post('/', authenticateToken, transactionRateLimiter, asyncHandler(async (
  * Get user's transactions
  */
 router.get('/', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  const { transactionRepository } = getServices();
   const query = validateAndSanitize(validationSchemas.transactionQuery, req.query);
-  
+
   const userId = req.user!.userId;
-  
+
   const offset = (query.page - 1) * query.limit;
-  
+
   try {
     const transactions = await transactionRepository.findByUserId(userId, query.limit, offset);
     
@@ -110,8 +120,9 @@ router.get('/', authenticateToken, asyncHandler(async (req: AuthenticatedRequest
  * Get transaction by ID
  */
 router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
+  const { transactionRepository } = getServices();
   const { id } = req.params;
-  
+
   try {
     const transaction = await transactionRepository.findById(id);
     
@@ -138,15 +149,16 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
  * Get transaction by hash
  */
 router.get('/hash/:hash', asyncHandler(async (req: Request, res: Response) => {
+  const { transactionRepository } = getServices();
   const { hash } = req.params;
-  
+
   if (!/^0x[a-fA-F0-9]{64}$/.test(hash)) {
     return res.status(400).json({
       success: false,
       message: 'Invalid transaction hash format',
     });
   }
-  
+
   try {
     const transaction = await transactionRepository.findByHash(hash);
     
@@ -171,8 +183,9 @@ router.get('/hash/:hash', asyncHandler(async (req: Request, res: Response) => {
  * Get transaction statistics
  */
 router.get('/stats', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  const { transactionRepository } = getServices();
   const userId = req.user!.userId;
-  
+
   try {
     const stats = await transactionRepository.getTransactionStats(userId);
     
@@ -190,12 +203,13 @@ router.get('/stats', authenticateToken, asyncHandler(async (req: AuthenticatedRe
  * Update transaction status (for webhook/event handling)
  */
 router.post('/:id/status', asyncHandler(async (req: Request, res: Response) => {
+  const { transactionRepository } = getServices();
   const { id } = req.params;
   const { status, blockNumber, gasUsed, transactionFee } = req.body;
-  
+
   // TODO: Add admin authentication
   // TODO: Validate status values
-  
+
   try {
     const transaction = await transactionRepository.update(id, {
       status,

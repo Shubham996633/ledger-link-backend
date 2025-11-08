@@ -28,7 +28,7 @@ export const rateLimiter = rateLimit({
  */
 export const authRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // 5 attempts per window
+  max: process.env.NODE_ENV === 'development' ? 100000 : 5, // 100000 in dev, 5 in production
   message: {
     success: false,
     message: 'Too many authentication attempts, please try again later',
@@ -49,7 +49,7 @@ export const authRateLimiter = rateLimit({
  */
 export const transactionRateLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 10, // 10 transactions per minute
+  max: process.env.NODE_ENV === 'development' ? 100000 : 10, // 100000 in dev, 10 in production
   message: {
     success: false,
     message: 'Too many transaction requests, please slow down',
@@ -70,7 +70,7 @@ export const transactionRateLimiter = rateLimit({
  */
 export const apiKeyRateLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 100, // 100 requests per minute
+  max: process.env.NODE_ENV === 'development' ? 100000 : 100, // 100000 in dev, 100 in production
   keyGenerator: (req) => {
     // Use API key as the key for rate limiting
     return req.headers['x-api-key'] as string || req.ip;

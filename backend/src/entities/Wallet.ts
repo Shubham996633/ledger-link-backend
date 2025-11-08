@@ -5,10 +5,12 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
+  OneToMany,
   JoinColumn,
   Index,
 } from 'typeorm';
 import { User } from './User';
+import { WalletBalance } from './WalletBalance';
 
 @Entity('wallets')
 @Index(['address'], { unique: true })
@@ -17,42 +19,48 @@ export class Wallet {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ unique: true })
+  @Column({ type: 'varchar', unique: true })
   address: string; // Ethereum wallet address
 
-  @Column()
+  @Column({ type: 'uuid', name: 'user_id' })
   userId: string;
 
-  @Column({ default: 'ethereum' })
+  @Column({ type: 'varchar', default: 'ethereum' })
   blockchain: string; // 'ethereum', 'arbitrum', etc.
 
-  @Column({ default: 'goerli' })
+  @Column({ type: 'varchar', default: 'goerli' })
   network: string; // 'mainnet', 'goerli', 'arbitrum-goerli', etc.
 
-  @Column({ default: true })
+  @Column({ type: 'boolean', default: true, name: 'is_active' })
   isActive: boolean;
 
-  @Column({ default: false })
+  @Column({ type: 'boolean', default: false, name: 'is_primary' })
   isPrimary: boolean; // Primary wallet for the user
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   label: string; // User-defined label for the wallet
 
-  @Column({ type: 'json', nullable: true })
+  @Column({ type: 'jsonb', nullable: true })
   metadata: Record<string, any>; // Additional wallet metadata
 
-  @Column({ nullable: true })
+  @Column({ type: 'timestamp', nullable: true, name: 'last_used_at' })
   lastUsedAt: Date;
+
+  @Column({ type: 'boolean', default: true, name: 'is_simulated' })
+  isSimulated: boolean; // True for fake/practice wallets, false for real blockchain wallets
 
   // Relations
   @ManyToOne(() => User, user => user.wallets)
-  @JoinColumn({ name: 'userId' })
+  @JoinColumn({ name: 'user_id' })
   user: User;
 
-  @CreateDateColumn()
+  @OneToMany(() => WalletBalance, balance => balance.wallet)
+  balances: WalletBalance[];
+
+  @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 
   // TODO: Add wallet verification status

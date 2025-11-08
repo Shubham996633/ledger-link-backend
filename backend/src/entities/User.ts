@@ -16,32 +16,35 @@ export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ unique: true })
+  @Column({ type: 'varchar', unique: true })
   email: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   username: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true, name: 'first_name' })
   firstName: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true, name: 'last_name' })
   lastName: string;
 
-  @Column({ default: false })
+  @Column({ type: 'boolean', default: false, name: 'is_email_verified' })
   isEmailVerified: boolean;
 
-  @Column({ default: 'user' })
+  @Column({ type: 'varchar', default: 'user' })
   role: string; // 'user', 'admin', 'moderator'
 
-  @Column({ default: true })
+  @Column({ type: 'boolean', default: true, name: 'is_active' })
   isActive: boolean;
 
-  @Column({ nullable: true })
+  @Column({ type: 'timestamp', nullable: true, name: 'last_login_at' })
   lastLoginAt: Date;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true, name: 'profile_image_url' })
   profileImageUrl: string;
+
+  @Column({ type: 'varchar', nullable: true, name: 'password_hash' })
+  passwordHash: string; // For email/password authentication
 
   // Relations
   @OneToMany(() => Wallet, wallet => wallet.user)
@@ -50,10 +53,10 @@ export class User {
   @OneToMany(() => Transaction, transaction => transaction.user)
   transactions: Transaction[];
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 
   // TODO: Add password field for traditional auth (if needed)

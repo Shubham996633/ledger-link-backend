@@ -17,12 +17,30 @@ export class TransactionRepository {
   }
 
   async findByUserId(userId: string, limit: number = 10, offset: number = 0): Promise<Transaction[]> {
-    return this.repository.find({
-      where: { userId },
-      take: limit,
-      skip: offset,
-      order: { createdAt: 'DESC' },
-    });
+    // Get user's wallet addresses to include received transactions
+    const walletRepo = this.dataSource.getRepository('Wallet');
+    const userWallets = await walletRepo.find({ where: { userId } });
+    const userAddresses = userWallets.map((w: any) => w.address);
+
+    if (userAddresses.length === 0) {
+      // No wallets, return only sent transactions
+      return this.repository.find({
+        where: { userId },
+        take: limit,
+        skip: offset,
+        order: { createdAt: 'DESC' },
+      });
+    }
+
+    // Get both sent and received transactions
+    return this.repository
+      .createQueryBuilder('transaction')
+      .where('transaction.userId = :userId', { userId })
+      .orWhere('transaction.toAddress IN (:...addresses)', { addresses: userAddresses })
+      .orderBy('transaction.createdAt', 'DESC')
+      .take(limit)
+      .skip(offset)
+      .getMany();
   }
 
   async findByAddress(address: string, limit: number = 10, offset: number = 0): Promise<Transaction[]> {
@@ -68,10 +86,30 @@ export class TransactionRepository {
 
   async getTransactionStats(userId: string): Promise<{
     total: number;
+    totalSent: number;
+    totalReceived: number;
     pending: number;
     confirmed: number;
     failed: number;
   }> {
+    // Get user's wallet addresses
+    const walletRepo = this.dataSource.getRepository('Wallet');
+    const userWallets = await walletRepo.find({ where: { userId } });
+    const userAddresses = userWallets.map((w: any) => w.address);
+
+    // Count sent transactions (fromAddress in userAddresses)
+    const totalSent = await this.repository
+      .createQueryBuilder('transaction')
+      .where('transaction.userId = :userId', { userId })
+      .andWhere('transaction.fromAddress IN (:...addresses)', { addresses: userAddresses.length > 0 ? userAddresses : [''] })
+      .getCount();
+
+    // Count received transactions (toAddress in userAddresses)
+    const totalReceived = await this.repository
+      .createQueryBuilder('transaction')
+      .where('transaction.toAddress IN (:...addresses)', { addresses: userAddresses.length > 0 ? userAddresses : [''] })
+      .getCount();
+
     const [total, pending, confirmed, failed] = await Promise.all([
       this.repository.count({ where: { userId } }),
       this.repository.count({ where: { userId, status: 'pending' } }),
@@ -79,7 +117,7 @@ export class TransactionRepository {
       this.repository.count({ where: { userId, status: 'failed' } }),
     ]);
 
-    return { total, pending, confirmed, failed };
+    return { total, totalSent, totalReceived, pending, confirmed, failed };
   }
 
   async getRecentTransactions(userId: string, days: number = 7): Promise<Transaction[]> {

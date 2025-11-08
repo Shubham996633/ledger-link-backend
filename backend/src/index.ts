@@ -17,6 +17,11 @@ import { swaggerSpec } from '@/config/swagger';
 import authRoutes from '@/controllers/authController';
 import transactionRoutes from '@/controllers/transactionController';
 import healthRoutes from '@/controllers/healthController';
+import walletRoutes from '@/controllers/walletController';
+import userRoutes from '@/controllers/userController';
+import dashboardRoutes from '@/controllers/dashboardController';
+import ledgerRoutes from '@/controllers/ledgerController';
+import paymentRequestRoutes from '@/controllers/paymentRequestController';
 
 // Load environment variables
 dotenv.config();
@@ -27,7 +32,7 @@ const PORT = process.env.PORT || 3000;
 // Security middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: process.env.FRONTEND_URL || 'http://localhost:3001',
   credentials: true,
 }));
 
@@ -54,6 +59,11 @@ app.use('/api/health', healthRoutes);
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/transactions', transactionRoutes);
+app.use('/api/wallets', walletRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/ledger', ledgerRoutes);
+app.use('/api/payment-requests', paymentRequestRoutes);
 
 // Error handling middleware (must be last)
 app.use(errorHandler);

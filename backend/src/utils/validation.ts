@@ -6,6 +6,10 @@ import { ethers } from 'ethers';
  */
 export const validationSchemas = {
   // Auth schemas
+  walletConnect: Joi.object({
+    address: Joi.string().pattern(/^0x[a-fA-F0-9]{40}$/).required(),
+  }),
+
   walletAuth: Joi.object({
     address: Joi.string().pattern(/^0x[a-fA-F0-9]{40}$/).required(),
     signature: Joi.string().required(),

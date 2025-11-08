@@ -15,70 +15,77 @@ import { User } from './User';
 @Index(['userId'])
 @Index(['status'])
 @Index(['createdAt'])
+@Index(['isSimulated'])
 export class Transaction {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ unique: true })
-  hash: string; // Blockchain transaction hash
+  @Column({ type: 'varchar', unique: true })
+  hash: string; // Blockchain transaction hash (or simulated hash for fake transactions)
 
-  @Column()
+  @Column({ type: 'uuid', name: 'user_id' })
   userId: string;
 
-  @Column()
+  @Column({ type: 'varchar', name: 'from_address' })
   fromAddress: string;
 
-  @Column()
+  @Column({ type: 'varchar', name: 'to_address' })
   toAddress: string;
 
   @Column({ type: 'decimal', precision: 36, scale: 18 })
   amount: string; // Amount in wei (supports very large numbers)
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true, name: 'token_address' })
   tokenAddress: string; // For ERC-20 tokens, null for ETH
 
-  @Column({ default: 'pending' })
+  @Column({ type: 'varchar', default: 'ETH', name: 'token_symbol' })
+  tokenSymbol: string; // Token symbol (ETH, USDT, USDC, etc.)
+
+  @Column({ type: 'varchar', default: 'pending' })
   status: 'pending' | 'confirmed' | 'failed' | 'cancelled';
 
-  @Column({ type: 'int' })
-  blockNumber: number;
+  @Column({ type: 'boolean', default: true, name: 'is_simulated' })
+  isSimulated: boolean; // True for fake/practice transactions, false for real blockchain
+
+  @Column({ type: 'int', nullable: true, name: 'block_number' })
+  blockNumber: number; // Null for simulated transactions
 
   @Column({ type: 'int', nullable: true })
   confirmations: number;
 
-  @Column({ type: 'decimal', precision: 36, scale: 18 })
+  @Column({ type: 'decimal', precision: 36, scale: 18, name: 'gas_used' })
   gasUsed: string;
 
-  @Column({ type: 'decimal', precision: 36, scale: 18 })
+  @Column({ type: 'decimal', precision: 36, scale: 18, name: 'gas_price' })
   gasPrice: string;
 
-  @Column({ type: 'decimal', precision: 36, scale: 18 })
+  @Column({ type: 'decimal', precision: 36, scale: 18, name: 'transaction_fee' })
   transactionFee: string;
 
-  @Column({ nullable: true })
+  @Column({ type: 'text', nullable: true })
   data: string; // Transaction data/input
 
-  @Column({ type: 'json', nullable: true })
+  @Column({ type: 'jsonb', nullable: true })
   metadata: Record<string, any>; // Additional transaction metadata
 
-  @Column({ nullable: true })
+  @Column({ type: 'text', nullable: true })
   description: string; // User-defined description
 
-  @Column({ default: 'ethereum' })
+  @Column({ type: 'varchar', default: 'ethereum' })
   blockchain: string;
 
-  @Column({ default: 'goerli' })
+  @Column({ type: 'varchar', default: 'goerli' })
   network: string;
 
   // Relations
   @ManyToOne(() => User, user => user.transactions)
-  @JoinColumn({ name: 'userId' })
+  @JoinColumn({ name: 'user_id' })
   user: User;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
 
   // TODO: Add transaction categorization
