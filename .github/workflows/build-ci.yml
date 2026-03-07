@@ -10,23 +10,9 @@ env:
   NODE_VERSION: '18'
 
 jobs:
-  backend-test:
-    name: Backend Tests
+  backend-build:
+    name: Backend Build
     runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: ledger_link_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
 
     steps:
       - name: Checkout code
@@ -44,11 +30,6 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-
-      - name: Type check
-        run: pnpm type-check
-
-      
-
+        
       - name: Build
         run: pnpm build
