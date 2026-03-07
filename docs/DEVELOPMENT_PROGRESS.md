@@ -1,7 +1,7 @@
 # Ledger Link - Development Progress Tracker
 
 ## Project Overview
-Final year project: Scalable Blockchain Platform with Smart Contract Automation and Layer-2 Integration.
+Scalable Blockchain Platform with Smart Contract Automation and Layer-2 Integration.
 - **Backend:** Express + TypeScript + PostgreSQL + TypeORM
 - **Frontend:** Next.js 14 + Tailwind CSS + Zustand
 - **AI APIs:** Groq (primary, fast), Gemini (fallback)

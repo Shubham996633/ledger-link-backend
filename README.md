@@ -2,8 +2,6 @@
 
 A scalable blockchain platform with smart contract automation, AI-powered analytics, zero-knowledge proofs, and real-world domain applications (healthcare, supply chain).
 
-**Final Year Project** - Galgotia College of Engineering & Technology
-
 ## Architecture
 
 ```
@@ -273,6 +271,3 @@ Covers the core blockchain architecture, Ethereum-based smart contracts, Arbitru
 ### Paper II: Privacy-Preserving Blockchain Framework for Healthcare and Supply Chain
 Covers zero-knowledge proofs (knowledge, range, membership, integrity), role-based access control, AES-256-CBC encryption, hash-chained audit trails, encrypted healthcare records with patient-controlled access, supply chain tracking with chain of custody, temperature/humidity monitoring, and HIPAA/GDPR compliance.
 
-## License
-
-This project is part of a final year academic submission.
