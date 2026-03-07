@@ -94,14 +94,15 @@ export function notFoundHandler(req: Request, res: Response, next: NextFunction)
 /**
  * Validation error handler
  */
-export function validationErrorHandler(error: any, req: Request, res: Response, next: NextFunction) {
+export function validationErrorHandler(error: any, req: Request, res: Response, next: NextFunction): void {
   if (error.name === 'ValidationError') {
     const errors = Object.values(error.errors).map((err: any) => err.message);
-    return res.status(400).json({
+    res.status(400).json({
       success: false,
       message: 'Validation failed',
       errors,
     });
+    return;
   }
   next(error);
 }

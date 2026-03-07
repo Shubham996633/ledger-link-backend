@@ -284,12 +284,12 @@ export class SimulatedWalletService {
 
       if (toWallet && toWallet.isSimulated) {
         // Add to recipient's balance
-        toBalance = await queryRunner.manager.findOne(WalletBalance, {
+        toBalance = (await queryRunner.manager.findOne(WalletBalance, {
           where: {
             walletId: toWallet.id,
             tokenSymbol,
           },
-        });
+        })) ?? undefined;
 
         if (!toBalance) {
           // Create balance for recipient
@@ -323,11 +323,9 @@ export class SimulatedWalletService {
         fromAddress: fromWallet.address,
         toAddress: request.toAddress,
         amount: request.amount,
-        tokenAddress: null, // We're not using real token addresses for simulated tokens
-        tokenSymbol, // Store the token symbol directly
-        status: 'confirmed', // Simulated transactions confirm instantly
+        tokenSymbol,
+        status: 'confirmed' as const,
         isSimulated: true,
-        blockNumber: null, // No real block number for simulated transactions
         confirmations: 1,
         gasUsed,
         gasPrice,
@@ -339,9 +337,9 @@ export class SimulatedWalletService {
           tokenSymbol,
           simulatedAt: new Date().toISOString(),
         },
-      });
+      } as any);
 
-      await queryRunner.manager.save(transaction);
+      const savedTransaction = await queryRunner.manager.save(Transaction, transaction as any) as Transaction;
 
       await queryRunner.commitTransaction();
 
@@ -349,7 +347,7 @@ export class SimulatedWalletService {
       try {
         const blockchainService: SimulatedBlockchainService = (global as any).__blockchainService;
         if (blockchainService) {
-          blockchainService.addToMempool(transaction);
+          blockchainService.addToMempool(savedTransaction);
         }
       } catch (err) {
         logger.warn('Could not add transaction to mempool:', err);
@@ -360,7 +358,7 @@ export class SimulatedWalletService {
       );
 
       return {
-        transaction,
+        transaction: savedTransaction,
         hash: txHash,
         status: 'confirmed',
         fromBalance: fromBalance.balance,

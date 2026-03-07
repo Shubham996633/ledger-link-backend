@@ -70,7 +70,7 @@ export class BlockchainService {
       });
 
       // Wait for confirmation
-      const receipt = await txResponse.wait();
+      const receipt = (await txResponse.wait())!;
       
       // Update transaction status
       await this.transactionRepository.updateByHash(txResponse.hash, {
@@ -139,7 +139,7 @@ export class BlockchainService {
       });
 
       // Wait for confirmation
-      const receipt = await txResponse.wait();
+      const receipt = (await txResponse.wait())!;
       
       // Update transaction status
       await this.transactionRepository.updateByHash(txResponse.hash, {

@@ -73,7 +73,7 @@ export const apiKeyRateLimiter = rateLimit({
   max: process.env.NODE_ENV === 'development' ? 100000 : 100, // 100000 in dev, 100 in production
   keyGenerator: (req) => {
     // Use API key as the key for rate limiting
-    return req.headers['x-api-key'] as string || req.ip;
+    return (req.headers['x-api-key'] as string) || req.ip || 'unknown';
   },
   message: {
     success: false,

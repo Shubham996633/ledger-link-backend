@@ -57,7 +57,7 @@ export class TransactionRepository {
 
   async findByStatus(status: string, limit: number = 10, offset: number = 0): Promise<Transaction[]> {
     return this.repository.find({
-      where: { status },
+      where: { status: status as Transaction['status'] },
       take: limit,
       skip: offset,
       order: { createdAt: 'DESC' },

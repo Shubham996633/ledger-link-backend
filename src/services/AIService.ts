@@ -106,7 +106,7 @@ export class AIService {
       throw new Error(`Groq API error: ${response.status}`);
     }
 
-    const data = await response.json();
+    const data: any = await response.json();
     return data.choices[0]?.message?.content || '{}';
   }
 
@@ -135,7 +135,7 @@ export class AIService {
       throw new Error(`Gemini API error: ${response.status}`);
     }
 
-    const data = await response.json();
+    const data: any = await response.json();
     return data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
   }
 
