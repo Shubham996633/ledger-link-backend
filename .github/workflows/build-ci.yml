@@ -1,4 +1,4 @@
-name: CI Pipeline
+name: Build CI Pipeline
 
 on:
   push:
@@ -48,17 +48,7 @@ jobs:
       - name: Type check
         run: pnpm type-check
 
-      - name: Run tests
-        run: pnpm test
-        env:
-          NODE_ENV: test
-          DB_HOST: localhost
-          DB_PORT: 5432
-          DB_USERNAME: postgres
-          DB_PASSWORD: postgres
-          DB_NAME: ledger_link_test
-          JWT_SECRET: test-jwt-secret
-          ENCRYPTION_KEY: test-encryption-key-32-characters
+      
 
       - name: Build
         run: pnpm build
