@@ -1,6 +1,6 @@
 Project LedgerLink {
   database_type: 'PostgreSQL'
-  Note: 'Ledger Link Database Schema'
+  Note: 'Ledger Link - Scalable Blockchain Platform Database Schema'
 }
 
 Table users {
@@ -11,7 +11,7 @@ Table users {
   last_name VARCHAR(100)
   password_hash VARCHAR(255)
   is_email_verified BOOLEAN [default: false]
-  role VARCHAR(50) [default: 'user']
+  role VARCHAR(50) [default: 'user', note: 'user, admin, provider, patient, auditor']
   is_active BOOLEAN [default: true]
   last_login_at TIMESTAMP
   profile_image_url VARCHAR(500)
@@ -24,7 +24,7 @@ Table wallets {
   address VARCHAR(255) [unique, not null]
   user_id UUID [not null]
   blockchain VARCHAR(50) [default: 'ethereum']
-  network VARCHAR(50) [default: 'goerli']
+  network VARCHAR(50) [default: 'simulated']
   is_active BOOLEAN [default: true]
   is_primary BOOLEAN [default: false]
   is_simulated BOOLEAN [default: true]
@@ -40,7 +40,7 @@ Table wallet_balances {
   wallet_id UUID [not null]
   token_symbol VARCHAR(20) [not null, default: 'ETH']
   token_address VARCHAR(255)
-  balance DECIMAL(36, 18) [default: 0]
+  balance DECIMAL(36,18) [default: 0]
   decimals INTEGER [default: 18]
   token_name VARCHAR(100)
   is_active BOOLEAN [default: true]
@@ -59,20 +59,41 @@ Table transactions {
   user_id UUID [not null]
   from_address VARCHAR(255) [not null]
   to_address VARCHAR(255) [not null]
-  amount DECIMAL(36, 18) [not null]
+  amount DECIMAL(36,18) [not null]
   token_address VARCHAR(255)
   status VARCHAR(50) [default: 'pending']
   is_simulated BOOLEAN [default: true]
   block_number INTEGER
   confirmations INTEGER
-  gas_used DECIMAL(36, 18)
-  gas_price DECIMAL(36, 18)
-  transaction_fee DECIMAL(36, 18)
+  gas_used DECIMAL(36,18)
+  gas_price DECIMAL(36,18)
+  transaction_fee DECIMAL(36,18)
   data TEXT
   metadata JSONB
   description TEXT
   blockchain VARCHAR(50) [default: 'ethereum']
-  network VARCHAR(50) [default: 'goerli']
+  network VARCHAR(50) [default: 'simulated']
+  created_at TIMESTAMP [default: `CURRENT_TIMESTAMP`]
+  updated_at TIMESTAMP [default: `CURRENT_TIMESTAMP`]
+}
+
+Table blocks {
+  id UUID [pk, default: `gen_random_uuid()`]
+  block_number INTEGER [unique, not null]
+  hash VARCHAR(255) [unique, not null]
+  previous_hash VARCHAR(255) [not null]
+  merkle_root VARCHAR(255)
+  timestamp BIGINT [not null]
+  nonce INTEGER [default: 0]
+  difficulty INTEGER [default: 1]
+  gas_used DECIMAL(36,18) [default: 0]
+  gas_limit DECIMAL(36,18) [default: 0]
+  miner VARCHAR(255)
+  validator VARCHAR(255)
+  size INTEGER [default: 0]
+  transaction_count INTEGER [default: 0]
+  confirmations INTEGER [default: 0]
+  data JSONB
   created_at TIMESTAMP [default: `CURRENT_TIMESTAMP`]
   updated_at TIMESTAMP [default: `CURRENT_TIMESTAMP`]
 }
@@ -84,9 +105,9 @@ Table payment_requests {
   wallet_address VARCHAR(255) [not null]
   request_id VARCHAR(20) [unique, not null]
   description VARCHAR(500)
-  amount DECIMAL(20, 8)
+  amount DECIMAL(20,8)
   token_symbol VARCHAR(20) [not null, default: 'ETH']
-  status VARCHAR(20) [not null, default: 'pending']
+  status VARCHAR(20) [not null, default: 'pending', note: 'pending, completed, cancelled, expired']
   paid_by_user_id UUID
   transaction_id UUID
   expires_at TIMESTAMP
@@ -94,8 +115,75 @@ Table payment_requests {
   updated_at TIMESTAMP [default: `CURRENT_TIMESTAMP`]
 }
 
+Table audit_logs {
+  id UUID [pk, default: `gen_random_uuid()`]
+  user_id UUID
+  action VARCHAR(100) [not null]
+  entity_type VARCHAR(100)
+  entity_id VARCHAR(255)
+  details JSONB
+  ip_address VARCHAR(50)
+  previous_hash VARCHAR(255) [note: 'Hash of previous log entry (chain)']
+  hash VARCHAR(255) [not null, note: 'Hash of this log entry']
+  created_at TIMESTAMP [default: `CURRENT_TIMESTAMP`]
+}
+
+Table health_records {
+  id UUID [pk, default: `gen_random_uuid()`]
+  patient_id UUID [not null]
+  provider_id UUID
+  record_type VARCHAR(50) [not null, note: 'lab_result, prescription, diagnosis, imaging, procedure, vaccination, general']
+  encrypted_data TEXT [not null, note: 'AES-256-CBC encrypted']
+  data_hash VARCHAR(255) [not null]
+  blockchain_tx_hash VARCHAR(255)
+  zk_proof_id VARCHAR(255)
+  access_list JSONB [default: '[]']
+  metadata JSONB
+  status VARCHAR(50) [default: 'active']
+  created_at TIMESTAMP [default: `CURRENT_TIMESTAMP`]
+  updated_at TIMESTAMP [default: `CURRENT_TIMESTAMP`]
+}
+
+Table supply_chain_items {
+  id UUID [pk, default: `gen_random_uuid()`]
+  tracking_id VARCHAR(50) [unique, not null]
+  name VARCHAR(255) [not null]
+  origin VARCHAR(255)
+  owner_id UUID [not null]
+  current_holder_id UUID
+  status VARCHAR(50) [default: 'created', note: 'created, in_transit, delivered, recalled']
+  chain_of_custody JSONB [default: '[]']
+  checkpoints JSONB [default: '[]', note: 'location, temp, humidity tracking']
+  data_hash VARCHAR(255)
+  blockchain_tx_hash VARCHAR(255)
+  metadata JSONB
+  created_at TIMESTAMP [default: `CURRENT_TIMESTAMP`]
+  updated_at TIMESTAMP [default: `CURRENT_TIMESTAMP`]
+}
+
+Table token_purchases {
+  id UUID [pk, default: `gen_random_uuid()`]
+  user_id UUID [not null]
+  wallet_id VARCHAR(255) [not null]
+  stripe_session_id VARCHAR(255) [unique, not null]
+  stripe_payment_intent VARCHAR(255)
+  usd_amount DECIMAL(18,2) [not null]
+  token_symbol VARCHAR(20) [not null]
+  token_amount DECIMAL(36,18) [not null]
+  price_at_purchase DECIMAL(18,8) [not null]
+  status VARCHAR(50) [default: 'pending']
+  metadata JSONB
+  created_at TIMESTAMP [default: `CURRENT_TIMESTAMP`]
+  updated_at TIMESTAMP [default: `CURRENT_TIMESTAMP`]
+}
+
+// Relationships
 Ref: wallets.user_id > users.id [delete: cascade]
 Ref: wallet_balances.wallet_id > wallets.id [delete: cascade]
 Ref: transactions.user_id > users.id [delete: cascade]
 Ref: payment_requests.user_id > users.id [delete: cascade]
 Ref: payment_requests.wallet_id > wallets.id [delete: cascade]
+Ref: audit_logs.user_id > users.id [delete: set null]
+Ref: health_records.patient_id > users.id [delete: cascade]
+Ref: supply_chain_items.owner_id > users.id [delete: cascade]
+Ref: token_purchases.user_id > users.id

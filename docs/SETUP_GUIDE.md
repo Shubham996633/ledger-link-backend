@@ -1,385 +1,200 @@
-# 🚀 Ledger Link Backend - Complete Setup Guide
+# Setup Guide
 
-## 📋 Prerequisites
-
-Before starting, ensure you have the following installed:
+## Prerequisites
 
 ### Required Software
 - **Node.js** 18+ ([Download](https://nodejs.org/))
 - **pnpm** 8+ (`npm install -g pnpm`)
-- **Docker** & **Docker Compose** ([Download](https://www.docker.com/products/docker-desktop))
-- **Git** ([Download](https://git-scm.com/))
+- **PostgreSQL** 14+ ([Download](https://www.postgresql.org/download/))
 
-### Required Accounts & API Keys
-- **Infura/Alchemy** account for Ethereum RPC ([Sign up](https://infura.io/))
-- **Etherscan** API key ([Get here](https://etherscan.io/apis))
-- **Arbiscan** API key ([Get here](https://arbiscan.io/apis))
+### Required API Keys
+- **Groq API Key** - For AI analytics ([Get here](https://console.groq.com/))
+- **Google Gemini API Key** - AI fallback ([Get here](https://aistudio.google.com/apikey))
+- **Binance API Key** - Read-only for market prices ([Get here](https://www.binance.com/en/my/settings/api-management))
+- **Stripe Test Key** - For token purchases ([Get here](https://dashboard.stripe.com/test/apikeys))
 
-## 🔧 Step-by-Step Setup
-
-### Step 1: Clone and Install Dependencies
+## Step 1: Clone and Install
 
 ```bash
-# Clone the repository
-git clone <your-repo-url>
+git clone git@github.com:Shubham996633/ledger-link-backend.git
 cd ledger-link-backend
-
-# Install dependencies
 pnpm install
 ```
 
-### Step 2: Environment Configuration
+## Step 2: PostgreSQL Setup
 
-#### Backend Environment Setup
+### Ubuntu/Debian
 ```bash
-# Copy environment template
-cp env.example .env
-
-# Edit .env file with your values
-nano .env
+sudo apt update
+sudo apt install postgresql postgresql-contrib
+sudo systemctl start postgresql
+sudo systemctl enable postgresql
 ```
 
-**Required Environment Variables:**
-```env
-# Server Configuration
-NODE_ENV=development
-PORT=3000
-HOST=0.0.0.0
+### Create Database
+```bash
+psql -h localhost -U postgres -c "CREATE DATABASE ledger_link;"
+```
 
-# Database Configuration
+TypeORM auto-creates all 10 tables on first startup (`synchronize: true` in development).
+
+### Database Tables (auto-created)
+
+| Table | Description |
+|-------|-------------|
+| users | User accounts (roles: user, admin, provider, patient, auditor) |
+| wallets | Simulated crypto wallets |
+| wallet_balances | Token balances per wallet (ETH, USDT, USDC, DAI, etc.) |
+| transactions | All blockchain transactions |
+| blocks | Mined blocks with PoS consensus |
+| payment_requests | Payment request links |
+| audit_logs | Hash-chained audit trail |
+| health_records | AES-256-CBC encrypted healthcare records |
+| supply_chain_items | Supply chain items with chain of custody |
+| token_purchases | Stripe payment records |
+
+For manual setup, run SQL scripts in `database/` folder in order (01-09).
+
+## Step 3: Environment Configuration
+
+```bash
+cp env.example .env
+```
+
+### Required Variables
+
+```env
+# Server
+PORT=3000
+NODE_ENV=development
+
+# Database
 DB_HOST=localhost
 DB_PORT=5432
 DB_USERNAME=postgres
-DB_PASSWORD=your_secure_password
+DB_PASSWORD=postgres
 DB_NAME=ledger_link
 
-# JWT Configuration (Generate secure keys)
-JWT_SECRET=your-super-secret-jwt-key-min-32-characters
-JWT_EXPIRES_IN=24h
-JWT_REFRESH_EXPIRES_IN=7d
+# JWT (generate secure keys for production)
+JWT_SECRET=your-secret-key-minimum-32-characters-long
+JWT_EXPIRES_IN=86400
+JWT_REFRESH_EXPIRES_IN=604800
 
-# Encryption Configuration (32 characters exactly)
+# Encryption (exactly 32 characters for AES-256)
 ENCRYPTION_KEY=your-32-character-encryption-key
 
-# Blockchain Configuration
-DEFAULT_NETWORK=goerli
-GOERLI_RPC_URL=https://goerli.infura.io/v3/YOUR_INFURA_PROJECT_ID
-ARBITRUM_GOERLI_RPC_URL=https://goerli-rollup.arbitrum.io/rpc
+# AI Services
+GROQ_API_KEY=gsk_your_groq_key
+GROQ_API_KEY_2=gsk_your_backup_groq_key
+GEMINI_API_KEY=your_gemini_key
 
-# API Keys
-ETHERSCAN_API_KEY=your-etherscan-api-key
-ARBISCAN_API_KEY=your-arbiscan-api-key
+# Market Data (Binance read-only)
+BINANCE_API_KEY=your_binance_api_key
+BINANCE_API_SECRET=your_binance_secret
 
-# Demo Private Key (for testing only - NEVER use in production)
-DEMO_PRIVATE_KEY=your-test-wallet-private-key
+# Payments (Stripe test mode)
+STRIPE_SECRET_KEY=sk_test_your_stripe_key
 
-# External Services
-FRONTEND_URL=http://localhost:3000
-REDIS_URL=redis://localhost:6379
+# Frontend URL (for CORS and Stripe redirect)
+FRONTEND_URL=http://localhost:3001
 ```
 
-#### Smart Contracts Environment Setup
-```bash
-# Copy contracts environment template
-cp contracts/env.example contracts/.env
-
-# Edit contracts/.env file
-nano contracts/.env
-```
-
-**Required Contract Environment Variables:**
-```env
-# Network RPC URLs
-GOERLI_RPC_URL=https://goerli.infura.io/v3/YOUR_INFURA_PROJECT_ID
-ARBITRUM_GOERLI_RPC_URL=https://goerli-rollup.arbitrum.io/rpc
-
-# Private key for deployment (keep secure!)
-PRIVATE_KEY=your-deployment-wallet-private-key
-
-# API Keys for contract verification
-ETHERSCAN_API_KEY=your-etherscan-api-key
-ARBISCAN_API_KEY=your-arbiscan-api-key
-```
-
-### Step 3: Database Setup
-
-#### Option A: Using Docker (Recommended)
-```bash
-# Start PostgreSQL and Redis
-pnpm docker:up
-
-# Wait for services to be ready (about 30 seconds)
-docker-compose logs postgres
-```
-
-#### Option B: Local PostgreSQL Installation
-```bash
-# Install PostgreSQL locally
-# Ubuntu/Debian:
-sudo apt update
-sudo apt install postgresql postgresql-contrib
-
-# macOS with Homebrew:
-brew install postgresql
-brew services start postgresql
-
-# Create database and user
-sudo -u postgres psql
-CREATE DATABASE ledger_link;
-CREATE USER ledger_user WITH PASSWORD 'your_secure_password';
-GRANT ALL PRIVILEGES ON DATABASE ledger_link TO ledger_user;
-\q
-```
-
-### Step 4: Build and Start Services
+## Step 4: Start Development Server
 
 ```bash
-# Build backend
-pnpm build
-
-# Compile smart contracts
-pnpm contracts:compile
-
-# Start development server
 pnpm dev
 ```
 
-### Step 5: Verify Setup
+Expected output:
+```
+Database connected successfully
+Genesis block created
+Ledger Link Backend running on port 3000
+WebSocket server ready on /ws
+Mining loop started (12s interval)
+```
+
+## Step 5: Frontend Setup
 
 ```bash
-# Check if backend is running
-curl http://localhost:3000/api/health
+cd ../ledger-link-frontend
+npm install
 
-# Expected response:
-{
-  "success": true,
-  "data": {
-    "status": "healthy",
-    "timestamp": "2024-01-01T00:00:00.000Z",
-    "uptime": 123.456,
-    "environment": "development"
-  }
-}
+# Create environment file
+echo "NEXT_PUBLIC_API_URL=http://localhost:3000/api" > .env.local
+
+npm run dev
 ```
 
-## 🗄️ Database Migrations
+Frontend runs on http://localhost:3001
 
-### Automatic Migration (Development)
-The application will automatically run migrations on startup in development mode.
+## Getting API Keys
 
-### Manual Migration (Production)
+### Groq (AI - Primary)
+1. Go to [console.groq.com](https://console.groq.com/)
+2. Sign up and create an API key
+3. Uses Llama 3.3 70B model for transaction analysis
+
+### Google Gemini (AI - Fallback)
+1. Go to [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
+2. Create an API key
+3. Used as fallback when Groq is unavailable
+
+### Binance (Market Data)
+1. Go to [Binance API Management](https://www.binance.com/en/my/settings/api-management)
+2. Create a read-only API key (no trading permissions needed)
+3. Used for real-time crypto price fetching
+
+### Stripe (Payments)
+1. Go to [Stripe Dashboard](https://dashboard.stripe.com/test/apikeys)
+2. Copy the test secret key (`sk_test_...`)
+3. Test card: `4242 4242 4242 4242`
+
+## Architecture
+
+```
+src/
+  config/          # Database, JWT configuration
+  controllers/     # API route handlers (auth, wallet, blockchain, ai, etc.)
+  entities/        # TypeORM entities (10 tables)
+  middleware/      # Auth (JWT + RBAC), rate limiting, error handling
+  repositories/    # Database query helpers
+  services/        # Business logic
+    SimulatedBlockchainService.ts  # PoS consensus, mining, mempool
+    SimulatedWalletService.ts      # Wallets, balances, transactions
+    AIService.ts                   # Groq/Gemini AI analytics
+    ZKProofService.ts              # Zero-knowledge proofs
+    AuditService.ts                # Hash-chained audit trail
+    HealthRecordService.ts         # Encrypted health records
+    SupplyChainService.ts          # Chain of custody tracking
+    TokenMarketService.ts          # Binance API prices
+    StripeService.ts               # Payment checkout
+    WebSocketService.ts            # Socket.IO real-time events
+  utils/           # Logger, helpers
+  index.ts         # Entry point
+```
+
+## Scripts
+
 ```bash
-# Generate migration
-npx typeorm migration:generate -n MigrationName
-
-# Run migrations
-npx typeorm migration:run
-
-# Revert last migration
-npx typeorm migration:revert
+pnpm dev          # Start dev server (tsx watch)
+pnpm build        # Compile TypeScript
+pnpm start        # Run compiled output
+pnpm type-check   # TypeScript check
+pnpm lint         # ESLint
+pnpm format       # Prettier
 ```
 
-### Database Schema Overview
-The following tables will be created automatically:
+## Common Issues
 
-#### Users Table
-```sql
-CREATE TABLE users (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  email VARCHAR UNIQUE NOT NULL,
-  username VARCHAR,
-  first_name VARCHAR,
-  last_name VARCHAR,
-  is_email_verified BOOLEAN DEFAULT false,
-  role VARCHAR DEFAULT 'user',
-  is_active BOOLEAN DEFAULT true,
-  last_login_at TIMESTAMP,
-  profile_image_url VARCHAR,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
-```
-
-#### Wallets Table
-```sql
-CREATE TABLE wallets (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  address VARCHAR UNIQUE NOT NULL,
-  user_id UUID REFERENCES users(id),
-  blockchain VARCHAR DEFAULT 'ethereum',
-  network VARCHAR DEFAULT 'goerli',
-  is_active BOOLEAN DEFAULT true,
-  is_primary BOOLEAN DEFAULT false,
-  label VARCHAR,
-  metadata JSONB,
-  last_used_at TIMESTAMP,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
-```
-
-#### Transactions Table
-```sql
-CREATE TABLE transactions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  hash VARCHAR UNIQUE NOT NULL,
-  user_id UUID REFERENCES users(id),
-  from_address VARCHAR NOT NULL,
-  to_address VARCHAR NOT NULL,
-  amount DECIMAL(36,18) NOT NULL,
-  token_address VARCHAR,
-  status VARCHAR DEFAULT 'pending',
-  block_number INTEGER NOT NULL,
-  confirmations INTEGER,
-  gas_used DECIMAL(36,18) NOT NULL,
-  gas_price DECIMAL(36,18) NOT NULL,
-  transaction_fee DECIMAL(36,18) NOT NULL,
-  data TEXT,
-  metadata JSONB,
-  description VARCHAR,
-  blockchain VARCHAR DEFAULT 'ethereum',
-  network VARCHAR DEFAULT 'goerli',
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
-```
-
-## 🔑 Getting Required Credentials
-
-### 1. Infura/Alchemy RPC URLs
-
-#### Infura Setup:
-1. Go to [infura.io](https://infura.io/)
-2. Sign up for a free account
-3. Create a new project
-4. Copy the Project ID
-5. Use: `https://goerli.infura.io/v3/YOUR_PROJECT_ID`
-
-#### Alchemy Setup:
-1. Go to [alchemy.com](https://alchemy.com/)
-2. Sign up for a free account
-3. Create a new app
-4. Copy the API key
-5. Use: `https://eth-goerli.g.alchemy.com/v2/YOUR_API_KEY`
-
-### 2. Block Explorer API Keys
-
-#### Etherscan API Key:
-1. Go to [etherscan.io/apis](https://etherscan.io/apis)
-2. Sign up for a free account
-3. Go to API-KEYs section
-4. Create a new API key
-5. Copy the key
-
-#### Arbiscan API Key:
-1. Go to [arbiscan.io/apis](https://arbiscan.io/apis)
-2. Sign up for a free account
-3. Go to API-KEYs section
-4. Create a new API key
-5. Copy the key
-
-### 3. Test Wallet Setup
-
-#### Create Test Wallet:
+### PostgreSQL peer authentication failed
 ```bash
-# Install ethers CLI (optional)
-npm install -g ethers
-
-# Generate a new wallet
-ethers wallet create
-
-# Or use MetaMask to create a test wallet
-# 1. Install MetaMask browser extension
-# 2. Create a new wallet
-# 3. Switch to Goerli testnet
-# 4. Get test ETH from faucet: https://goerlifaucet.com/
-# 5. Export private key (Account Details > Export Private Key)
+# Use TCP connection instead of Unix socket
+psql -h localhost -U postgres
 ```
 
-#### Get Test ETH:
-- **Goerli Faucet**: [goerlifaucet.com](https://goerlifaucet.com/)
-- **Arbitrum Goerli Faucet**: [bridge.arbitrum.io](https://bridge.arbitrum.io/)
+### TypeORM entity errors
+Ensure `strictPropertyInitialization` is set in `tsconfig.json` for entity decorators.
 
-## 🚨 Common Issues & Solutions
-
-### Issue 1: Database Connection Failed
-```bash
-# Check if PostgreSQL is running
-docker-compose ps
-
-# Check logs
-docker-compose logs postgres
-
-# Restart services
-pnpm docker:down
-pnpm docker:up
-```
-
-### Issue 2: Port Already in Use
-```bash
-# Find process using port 3000
-lsof -i :3000
-
-# Kill the process
-kill -9 <PID>
-
-# Or change port in .env
-PORT=3001
-```
-
-### Issue 3: Blockchain Connection Failed
-```bash
-# Check RPC URL format
-curl -X POST -H "Content-Type: application/json" \
-  --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' \
-  YOUR_RPC_URL
-
-# Should return a block number
-```
-
-### Issue 4: Contract Deployment Failed
-```bash
-# Check if you have enough test ETH
-# Check private key format (should start with 0x)
-# Verify network configuration in hardhat.config.js
-```
-
-## 📊 Monitoring & Health Checks
-
-### Local Monitoring URLs:
-- **API Health**: http://localhost:3000/api/health
-- **API Documentation**: http://localhost:3000/api-docs
-- **Prometheus Metrics**: http://localhost:9090
-- **Grafana Dashboard**: http://localhost:3001 (admin/admin)
-
-### Health Check Commands:
-```bash
-# Backend health
-curl http://localhost:3000/api/health
-
-# Database health
-docker-compose exec postgres pg_isready
-
-# Redis health
-docker-compose exec redis redis-cli ping
-```
-
-## 🎯 Next Steps After Setup
-
-1. **Test API Endpoints** using the Postman collection
-2. **Deploy Smart Contracts** to testnet
-3. **Set up Frontend** integration
-4. **Configure Production** environment
-5. **Set up Monitoring** and alerts
-
-## 📞 Support
-
-If you encounter any issues:
-1. Check the logs: `docker-compose logs backend`
-2. Verify environment variables
-3. Check network connectivity
-4. Review the troubleshooting section above
-
----
-
-**🎉 You're all set! The Ledger Link Backend should now be running smoothly.**
+### Groq rate limits
+The system auto-rotates between `GROQ_API_KEY` and `GROQ_API_KEY_2`, and falls back to Gemini if both fail.

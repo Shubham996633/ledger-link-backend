@@ -258,10 +258,9 @@ pnpm format       # Prettier
 - [Quick Start](docs/QUICK_START.md) - Quick start guide
 - [Setup Guide](docs/SETUP_GUIDE.md) - Detailed setup instructions
 - [Authentication Guide](docs/AUTHENTICATION_GUIDE.md) - Auth system details
-- [Postman Testing](docs/POSTMAN_TESTING_GUIDE.md) - API testing with Postman
 - [Deployment](docs/DEPLOYMENT.md) - Deployment guide
-- [Research Paper I](../Project_II_Research_Paper_I.pdf) - Blockchain scalability & Layer-2 integration
-- [Research Paper II](../Project_II_Research_Paper_II.pdf) - Privacy-preserving framework for healthcare & supply chain
+- [Research Paper I](docs/Project_II_Research_Paper_I.pdf) - Blockchain scalability & Layer-2 integration
+- [Research Paper II](docs/Project_II_Research_Paper_II.pdf) - Privacy-preserving framework for healthcare & supply chain
 
 ## Research Papers
 

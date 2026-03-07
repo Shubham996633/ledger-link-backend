@@ -1,200 +1,139 @@
-# Ledger Link Backend - Deployment Guide
+# Deployment Guide
 
-## 🎉 All TODOs Completed!
-
-The Ledger Link backend project is now fully set up with all requested features implemented. Here's what has been completed:
-
-## ✅ Completed Features
-
-### 1. **Project Setup** ✅
-- Monorepo with pnpm workspaces
-- Modular backend structure with clean architecture
-- TypeScript configuration with path aliases
-
-### 2. **Backend Service** ✅
-- Node.js + Express + TypeScript backend
-- Clean architecture with controllers, services, repositories, entities
-- Proper folder structure following industry standards
-
-### 3. **Development Tooling** ✅
-- ESLint configuration for code quality
-- Prettier for code formatting
-- Jest for testing framework
-- TypeScript strict mode enabled
-
-### 4. **Docker & Infrastructure** ✅
-- Dockerfile for backend containerization
-- docker-compose.yml with PostgreSQL, Redis, monitoring
-- Multi-stage Docker build for optimization
-- Health checks and proper logging
-
-### 5. **CI/CD Pipeline** ✅
-- GitHub Actions workflow
-- Automated testing, linting, building
-- Security scanning with Snyk
-- Docker image building and testing
-- Staging and production deployment workflows
-
-### 6. **Blockchain Integration** ✅
-- ethers.js v6 integration
-- Solidity smart contracts with Hardhat
-- TransactionLogger contract for secure logging
-- Support for multiple networks (Goerli, Arbitrum)
-- Contract deployment and verification scripts
-
-### 7. **Wallet Authentication** ✅
-- MetaMask integration
-- Wallet signature verification
-- JWT token generation and validation
-- Secure authentication flow
-
-### 8. **Core APIs** ✅
-- REST API endpoints with proper controllers
-- Authentication endpoints (`/api/auth/*`)
-- Transaction endpoints (`/api/transactions/*`)
-- Health check endpoints (`/api/health/*`)
-- Proper error handling and validation
-
-### 9. **Security Features** ✅
-- AES encryption for sensitive data
-- JWT authentication with refresh tokens
-- Role-based access control (RBAC)
-- Rate limiting on all endpoints
-- Input validation and sanitization
-- CORS protection and security headers
-
-### 10. **Monitoring & Observability** ✅
-- Winston logging with rotation
-- Prometheus metrics collection
-- Grafana dashboard configuration
-- Health checks and service monitoring
-- Request/response logging
-
-### 11. **Database Integration** ✅
-- TypeORM with PostgreSQL
-- Entity definitions (User, Transaction, Wallet)
-- Repository pattern implementation
-- Database service with connection management
-- Migration support
-
-### 12. **API Documentation** ✅
-- Swagger/OpenAPI documentation
-- Interactive API explorer at `/api-docs`
-- Comprehensive schema definitions
-- Authentication documentation
-
-### 13. **Testing Setup** ✅
-- Unit tests for services and utilities
-- Integration tests for API endpoints
-- Contract tests for smart contracts
-- Test data setup and mocking
-
-### 14. **Production Configuration** ✅
-- AWS ECS deployment configuration
-- Production environment setup
-- Secrets management with AWS Secrets Manager
-- Load balancer and auto-scaling configuration
-
-## 🚀 Quick Start Commands
-
-### Development Setup
-```bash
-# Run setup script
-./scripts/setup.sh
-
-# Start development environment
-pnpm docker:up
-
-# Start backend development server
-pnpm dev
-
-# Compile and test contracts
-pnpm contracts:compile
-pnpm contracts:test
-```
-
-### Deployment
-```bash
-# Deploy contracts to Goerli
-pnpm contracts:deploy:goerli
-
-# Deploy to AWS ECS
-./deployment/aws/deploy.sh force
-```
-
-### Testing
-```bash
-# Run backend tests
-pnpm test
-
-# Run contract tests
-pnpm contracts:test
-
-# Run with coverage
-pnpm test:coverage
-```
-
-## 📊 Available Endpoints
-
-### Authentication
-- `POST /api/auth/wallet/connect` - Get auth message
-- `POST /api/auth/wallet/authenticate` - Authenticate with signature
-- `POST /api/auth/refresh` - Refresh JWT token
-- `GET /api/auth/me` - Get current user info
-
-### Transactions
-- `POST /api/transactions` - Create transaction
-- `GET /api/transactions` - List user transactions
-- `GET /api/transactions/:id` - Get transaction details
-- `GET /api/transactions/stats` - Get transaction statistics
-
-### Health & Monitoring
-- `GET /api/health` - Basic health check
-- `GET /api/health/metrics` - Prometheus metrics
-- `GET /api-docs` - API documentation
-
-## 🔧 Configuration
+## Production Checklist
 
 ### Environment Variables
-Copy `env.example` to `.env` and configure:
-- Database credentials
-- JWT secrets
-- Blockchain RPC URLs
-- API keys for block explorers
 
-### Smart Contracts
-Copy `contracts/env.example` to `contracts/.env` and configure:
-- Private key for deployment
-- RPC URLs for networks
-- API keys for verification
+Set these for production:
 
-## 📈 Monitoring
+```env
+NODE_ENV=production
+PORT=3000
 
-### Local Development
-- **Prometheus**: http://localhost:9090
-- **Grafana**: http://localhost:3001 (admin/admin)
-- **API Docs**: http://localhost:3000/api-docs
+# Database (use production credentials)
+DB_HOST=your-db-host
+DB_PORT=5432
+DB_USERNAME=your-db-user
+DB_PASSWORD=your-secure-password
+DB_NAME=ledger_link
 
-### Production
-- **API**: https://api.ledgerlink.com
-- **Health Check**: https://api.ledgerlink.com/api/health
-- **Metrics**: https://api.ledgerlink.com/api/health/metrics
+# JWT (use strong, unique secrets)
+JWT_SECRET=generate-a-64-char-random-string
+JWT_EXPIRES_IN=86400
+JWT_REFRESH_EXPIRES_IN=604800
 
-## 🎯 Next Steps
+# Encryption (exactly 32 characters)
+ENCRYPTION_KEY=generate-a-32-char-random-string
 
-The project is now ready for:
-1. **Frontend Integration** - Connect with React/Vue.js frontend
-2. **User Testing** - Deploy to staging for user feedback
-3. **Production Launch** - Deploy to production with monitoring
-4. **Feature Extensions** - Add more blockchain networks, advanced features
+# AI Services
+GROQ_API_KEY=your-production-groq-key
+GROQ_API_KEY_2=your-backup-groq-key
+GEMINI_API_KEY=your-gemini-key
 
-## 📚 Documentation
+# Market Data
+BINANCE_API_KEY=your-binance-key
+BINANCE_API_SECRET=your-binance-secret
 
-- **README.md** - Comprehensive setup and usage guide
-- **API Documentation** - Available at `/api-docs` endpoint
-- **Code Comments** - Extensive TODO comments for future development
-- **Architecture** - Clean, modular, and scalable design
+# Payments (use live Stripe key for production)
+STRIPE_SECRET_KEY=sk_live_your-stripe-key
 
----
+# Frontend URL
+FRONTEND_URL=https://your-frontend-domain.com
+```
 
-**🎉 Ledger Link Backend is now complete and ready for production deployment!**
+### Database Setup
+
+For production, disable TypeORM auto-sync and run migrations manually:
+
+```bash
+# Run SQL scripts in order
+psql -h $DB_HOST -U $DB_USERNAME -d $DB_NAME -f database/01_initial_setup.sql
+psql -h $DB_HOST -U $DB_USERNAME -d $DB_NAME -f database/02_add_password_auth.sql
+psql -h $DB_HOST -U $DB_USERNAME -d $DB_NAME -f database/03_add_payment_requests.sql
+psql -h $DB_HOST -U $DB_USERNAME -d $DB_NAME -f database/04_add_simulated_wallet.sql
+psql -h $DB_HOST -U $DB_USERNAME -d $DB_NAME -f database/05_add_blocks.sql
+psql -h $DB_HOST -U $DB_USERNAME -d $DB_NAME -f database/06_add_audit_logs.sql
+psql -h $DB_HOST -U $DB_USERNAME -d $DB_NAME -f database/07_add_health_records.sql
+psql -h $DB_HOST -U $DB_USERNAME -d $DB_NAME -f database/08_add_supply_chain_items.sql
+psql -h $DB_HOST -U $DB_USERNAME -d $DB_NAME -f database/09_add_token_purchases.sql
+```
+
+### Build
+
+```bash
+pnpm build
+pnpm start
+```
+
+### Security Considerations
+
+- Use strong JWT secrets (64+ characters)
+- Use unique encryption keys
+- Set `NODE_ENV=production`
+- Use HTTPS in production
+- Set `FRONTEND_URL` to your actual frontend domain for CORS
+- For Stripe, switch from `sk_test_` to `sk_live_` keys
+- Restrict Binance API key to read-only (market data)
+
+## Deploy Options
+
+### VPS (Ubuntu)
+
+```bash
+# Install Node.js 18+
+curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt-get install -y nodejs
+
+# Install pnpm
+npm install -g pnpm
+
+# Install PostgreSQL
+sudo apt install postgresql postgresql-contrib
+sudo systemctl enable postgresql
+
+# Clone and build
+git clone git@github.com:Shubham996633/ledger-link-backend.git
+cd ledger-link-backend
+pnpm install
+pnpm build
+
+# Use PM2 for process management
+npm install -g pm2
+pm2 start dist/index.js --name ledger-link-backend
+pm2 save
+pm2 startup
+```
+
+### Using Nginx Reverse Proxy
+
+```nginx
+server {
+    listen 80;
+    server_name api.yourdomain.com;
+
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    location /ws {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+    }
+}
+```
+
+### Frontend Deployment
+
+```bash
+cd ledger-link-frontend
+echo "NEXT_PUBLIC_API_URL=https://api.yourdomain.com/api" > .env.local
+npm run build
+# Deploy to Vercel, Netlify, or self-host with PM2
+```
