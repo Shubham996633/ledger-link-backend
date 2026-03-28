@@ -43,7 +43,7 @@ export class TokenPurchase {
   priceAtPurchase: string;
 
   @Column({ type: 'varchar', length: 50, default: 'pending' })
-  status: 'pending' | 'completed' | 'failed' | 'expired';
+  status: 'pending' | 'completed' | 'failed' | 'expired' | 'cancelled';
 
   @Column({ type: 'jsonb', nullable: true })
   metadata: Record<string, any>;
