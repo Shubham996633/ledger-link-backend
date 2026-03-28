@@ -11,9 +11,15 @@ function getMarketService(): TokenMarketService {
   return new TokenMarketService();
 }
 
+let stripeInstance: StripeService | null = null;
+
 function getStripeService(): StripeService {
-  const db = DatabaseService.getInstance();
-  return new StripeService(db.getDataSource());
+  if (!stripeInstance) {
+    const db = DatabaseService.getInstance();
+    stripeInstance = new StripeService(db.getDataSource());
+    stripeInstance.startCleanupLoop();
+  }
+  return stripeInstance;
 }
 
 // ============================================
@@ -44,6 +50,24 @@ router.get('/prices/:symbol', async (req: Request, res: Response) => {
     res.json({ success: true, data: price });
   } catch (error: any) {
     logger.error('Failed to fetch price:', error);
+    res.status(400).json({ success: false, message: error.message });
+  }
+});
+
+/**
+ * GET /api/market/klines/:symbol - Get historical price data (candlesticks)
+ */
+router.get('/klines/:symbol', async (req: Request, res: Response) => {
+  try {
+    const { interval = '1d', limit = '30' } = req.query;
+    const marketService = getMarketService();
+    const klines = await marketService.getKlines(
+      req.params.symbol,
+      interval as string,
+      parseInt(limit as string)
+    );
+    res.json({ success: true, data: { klines } });
+  } catch (error: any) {
     res.status(400).json({ success: false, message: error.message });
   }
 });
@@ -84,6 +108,7 @@ router.post('/checkout', authenticateToken, async (req: AuthenticatedRequest, re
     const stripeService = getStripeService();
     const result = await stripeService.createCheckoutSession({
       userId: req.user!.userId,
+      userEmail: req.user!.email,
       walletId,
       tokenSymbol: tokenSymbol.toUpperCase(),
       usdAmount: parseFloat(usdAmount),

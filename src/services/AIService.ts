@@ -143,9 +143,17 @@ export class AIService {
    * Analyze a transaction for anomalies and fraud
    */
   async analyzeTransaction(transactionId: string): Promise<AnomalyResult> {
-    const transaction = await this.transactionRepository.findOne({
-      where: { id: transactionId },
-    });
+    // Support both UUID and transaction hash (0x...)
+    let transaction;
+    if (transactionId.startsWith('0x')) {
+      transaction = await this.transactionRepository.findOne({
+        where: { hash: transactionId },
+      });
+    } else {
+      transaction = await this.transactionRepository.findOne({
+        where: { id: transactionId },
+      });
+    }
 
     if (!transaction) throw new Error('Transaction not found');
 

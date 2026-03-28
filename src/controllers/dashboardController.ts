@@ -3,6 +3,7 @@ import { DatabaseService } from '@/services/DatabaseService';
 import { SimulatedWalletService } from '@/services/SimulatedWalletService';
 import { TransactionRepository } from '@/repositories/TransactionRepository';
 import { WalletRepository } from '@/repositories/WalletRepository';
+import { TokenMarketService } from '@/services/TokenMarketService';
 import { logger } from '@/utils/logger';
 import { authenticateToken, AuthenticatedRequest } from '@/middleware/auth';
 import { asyncHandler } from '@/middleware/errorHandler';
@@ -13,6 +14,7 @@ const router = Router();
 let simulatedWalletService: SimulatedWalletService;
 let transactionRepository: TransactionRepository;
 let walletRepository: WalletRepository;
+const tokenMarketService = new TokenMarketService();
 
 function getServices() {
   if (!simulatedWalletService) {
@@ -35,13 +37,10 @@ router.get('/overview', authenticateToken, asyncHandler(async (req: Authenticate
   // Get user wallets
   const wallets = await simulatedWalletService.getUserWallets(userId);
 
-  // Calculate total balance across all wallets (in mock USD)
-  const mockPrices: Record<string, number> = {
-    ETH: 2000,
-    USDT: 1,
-    USDC: 1,
-    DAI: 1,
-  };
+  // Get real prices from Binance API
+  const allPrices = await tokenMarketService.getAllPrices();
+  const priceMap: Record<string, number> = {};
+  allPrices.forEach(p => { priceMap[p.symbol] = p.price; });
 
   let totalBalanceUSD = 0;
   let totalETH = 0;
@@ -50,7 +49,7 @@ router.get('/overview', authenticateToken, asyncHandler(async (req: Authenticate
   for (const wallet of wallets) {
     if (wallet.balances) {
       for (const balance of wallet.balances) {
-        const price = mockPrices[balance.tokenSymbol] || 0;
+        const price = priceMap[balance.tokenSymbol] || 0;
         const balanceNum = parseFloat(balance.balance);
         totalBalanceUSD += balanceNum * price;
 
@@ -134,12 +133,10 @@ router.get('/portfolio', authenticateToken, asyncHandler(async (req: Authenticat
 
   const wallets = await simulatedWalletService.getUserWallets(userId);
 
-  const mockPrices: Record<string, number> = {
-    ETH: 2000,
-    USDT: 1,
-    USDC: 1,
-    DAI: 1,
-  };
+  // Get real prices from Binance API
+  const allPrices = await tokenMarketService.getAllPrices();
+  const priceMap: Record<string, number> = {};
+  allPrices.forEach(p => { priceMap[p.symbol] = p.price; });
 
   // Aggregate balances across all wallets
   const tokenBalances: Record<string, { balance: number; value: number; percentage: number }> = {};
@@ -149,7 +146,7 @@ router.get('/portfolio', authenticateToken, asyncHandler(async (req: Authenticat
     if (wallet.balances) {
       for (const balance of wallet.balances) {
         const balanceNum = parseFloat(balance.balance);
-        const price = mockPrices[balance.tokenSymbol] || 0;
+        const price = priceMap[balance.tokenSymbol] || 0;
         const value = balanceNum * price;
 
         if (!tokenBalances[balance.tokenSymbol]) {
@@ -179,7 +176,7 @@ router.get('/portfolio', authenticateToken, asyncHandler(async (req: Authenticat
     balance: data.balance.toFixed(4),
     value: data.value.toFixed(2),
     percentage: data.percentage.toFixed(2),
-    price: mockPrices[symbol] || 0,
+    price: priceMap[symbol] || 0,
   }));
 
   res.json({

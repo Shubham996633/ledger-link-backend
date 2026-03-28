@@ -126,6 +126,42 @@ export class TokenMarketService {
     return tokenAmount.toFixed(18);
   }
 
+  async getKlines(symbol: string, interval: string = '1d', limit: number = 30): Promise<any[]> {
+    const upperSymbol = symbol.toUpperCase();
+
+    // Stablecoins don't have meaningful price charts
+    if (this.stablecoins.includes(upperSymbol)) {
+      const now = Date.now();
+      return Array.from({ length: limit }, (_, i) => ({
+        time: now - (limit - i) * 86400000,
+        open: 1, high: 1.001, low: 0.999, close: 1, volume: 0,
+      }));
+    }
+
+    const binancePair = this.symbolMap[upperSymbol];
+    if (!binancePair) throw new Error(`Unsupported token: ${symbol}`);
+
+    try {
+      const response = await axios.get(`${this.baseUrl}/api/v3/klines`, {
+        params: { symbol: binancePair, interval, limit },
+        headers: this.apiKey ? { 'X-MBX-APIKEY': this.apiKey } : {},
+        timeout: 5000,
+      });
+
+      return response.data.map((k: any[]) => ({
+        time: k[0],
+        open: parseFloat(k[1]),
+        high: parseFloat(k[2]),
+        low: parseFloat(k[3]),
+        close: parseFloat(k[4]),
+        volume: parseFloat(k[5]),
+      }));
+    } catch (error) {
+      logger.error(`Failed to fetch klines for ${symbol}:`, error);
+      return [];
+    }
+  }
+
   private getFallbackPrice(symbol: string): TokenPrice {
     const fallbackPrices: Record<string, number> = {
       ETH: 2500,

@@ -26,13 +26,14 @@ export class StripeService {
 
   async createCheckoutSession(params: {
     userId: string;
+    userEmail?: string;
     walletId: string;
     tokenSymbol: string;
     usdAmount: number;
     successUrl: string;
     cancelUrl: string;
   }): Promise<{ sessionId: string; url: string }> {
-    const { userId, walletId, tokenSymbol, usdAmount, successUrl, cancelUrl } = params;
+    const { userId, userEmail, walletId, tokenSymbol, usdAmount, successUrl, cancelUrl } = params;
 
     if (usdAmount < 1 || usdAmount > 10000) {
       throw new Error('Amount must be between $1 and $10,000');
@@ -45,6 +46,7 @@ export class StripeService {
     // Create Stripe Checkout session
     const session = await this.stripe.checkout.sessions.create({
       payment_method_types: ['card'],
+      ...(userEmail ? { customer_email: userEmail } : {}),
       line_items: [
         {
           price_data: {
@@ -59,7 +61,7 @@ export class StripeService {
         },
       ],
       mode: 'payment',
-      success_url: `${successUrl}?session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${successUrl}${successUrl.includes('?') ? '&' : '?'}session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: cancelUrl,
       metadata: {
         userId,
@@ -156,6 +158,40 @@ export class StripeService {
     } catch (error) {
       logger.error(`Failed to fulfill purchase for session ${session.id}:`, error);
     }
+  }
+
+  /**
+   * Cancel pending purchases older than 2 minutes
+   */
+  async cancelStalePurchases(): Promise<number> {
+    const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
+    const result = await this.purchaseRepo
+      .createQueryBuilder()
+      .update(TokenPurchase)
+      .set({ status: 'cancelled' })
+      .where('status = :status AND created_at < :cutoff', {
+        status: 'pending',
+        cutoff: twoMinutesAgo,
+      })
+      .execute();
+
+    const count = result.affected || 0;
+    if (count > 0) {
+      logger.info(`Cancelled ${count} stale pending purchase(s)`);
+    }
+    return count;
+  }
+
+  /**
+   * Start background cleanup loop (runs every 60 seconds)
+   */
+  startCleanupLoop(): void {
+    setInterval(() => {
+      this.cancelStalePurchases().catch(err =>
+        logger.error('Stale purchase cleanup failed:', err)
+      );
+    }, 60 * 1000);
+    logger.info('Pending purchase cleanup loop started (60s interval, 2min timeout)');
   }
 
   async getUserPurchases(userId: string, limit = 20, offset = 0): Promise<{ purchases: TokenPurchase[]; total: number }> {
