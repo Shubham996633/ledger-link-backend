@@ -1,6 +1,6 @@
-# Ledger Link
+# Ledger Link - Backend
 
-A scalable blockchain platform with smart contract automation, AI-powered analytics, zero-knowledge proofs, and real-world domain applications (healthcare, supply chain).
+A scalable blockchain platform with smart contract automation, AI-powered analytics, zero-knowledge proofs, and real-world domain applications in healthcare and supply chain management.
 
 ## Architecture
 
@@ -21,204 +21,225 @@ Backend (Express + TypeScript)
     +-- WebSocketService (real-time block/transaction feed)
     |
     v
-PostgreSQL (10 tables)
+PostgreSQL (10 tables via TypeORM)
 ```
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | Next.js 14, Tailwind CSS, Recharts, Zustand, Socket.IO Client |
-| Backend | Express, TypeScript, TypeORM, Socket.IO |
+| Runtime | Node.js 18+ |
+| Language | TypeScript |
+| Framework | Express.js |
+| ORM | TypeORM |
 | Database | PostgreSQL |
+| Real-Time | Socket.IO |
 | AI | Groq API (Llama 3.3 70B), Google Gemini (fallback) |
-| Payments | Stripe (test mode), Binance API (market data) |
-| Security | JWT, AES-256-CBC, SHA-256, Simulated ZK Proofs |
+| Payments | Stripe SDK (test mode) |
+| Market Data | Binance API (live crypto prices) |
+| Auth | JWT (jsonwebtoken) + bcryptjs |
+| Encryption | AES-256-CBC (native crypto) |
+| Logging | Winston |
 
 ## Features
 
-### Core Blockchain
-- Proof-of-Stake consensus with 5 validators (stake-weighted selection)
-- SHA-256 block hashing with Merkle tree transaction roots
-- Transaction mempool with gas price priority sorting
-- Dynamic gas calculation per transaction type
-- Chain integrity verification
+### Core Blockchain Engine
+- **Proof-of-Stake consensus** with 5 validators (stake-weighted random selection)
+- **SHA-256 block hashing** with Merkle tree transaction roots
+- **Mempool management** with gas price priority sorting (max 50 tx/block)
+- **Dynamic gas calculation** per transaction type (transfer: 21000, token: 65000, contract: 53000)
+- **12-second block intervals** with automatic mining loop
+- **Chain integrity verification** (hash chain + block number validation)
+- **Genesis block** auto-creation on startup
 
-### AI Analytics
-- Transaction anomaly detection and fraud scoring
-- AI-powered spending insights and categorization
-- Portfolio analysis and optimization suggestions
-- Address risk profiling
+### AI-Powered Analytics (Groq + Gemini)
+- Transaction anomaly detection with 0-100 risk scoring
+- AI-powered spending insights and pattern categorization
+- Portfolio analysis with diversification scoring and rebalancing suggestions
+- Address risk profiling with rule-based + AI scoring
+- Batch fraud detection across recent transactions
 
-### Privacy & Security
-- 4 types of simulated zero-knowledge proofs
-- Hash-chained audit trail (tamper-proof)
-- Role-based access control (user, admin, provider, patient, auditor)
-- AES-256-CBC encryption for sensitive data
+### Privacy & Zero-Knowledge Proofs
+- **Proof of Knowledge**: Prove you know a secret without revealing it
+- **Range Proof**: Prove a value falls within a range without exposing it
+- **Membership Proof**: Prove membership in a set without revealing identity
+- **Integrity Proof**: Prove data hasn't been tampered with
+- All proofs are simulated for educational demonstration
 
-### Domain Applications
-- **Healthcare**: Encrypted medical records with access control and blockchain integrity
-- **Supply Chain**: Product tracking with chain of custody, temperature/humidity monitoring
+### Healthcare Records
+- **AES-256-CBC encryption** for all medical data
+- **SHA-256 data hashing** for integrity verification
+- **Blockchain anchoring** (hash committed to latest block)
+- **Role-based access control** (patient, provider, admin, auditor)
+- **Fine-grained permissions** per record with grant/revoke
+- Record types: lab results, prescriptions, diagnoses, imaging, procedures, vaccinations
 
-### Token Purchase
-- Real-time crypto prices from Binance API (ETH, BTC, SOL, BNB, etc.)
-- Stripe Checkout for USD payments (test mode)
-- Automatic token crediting to wallet at market rate
+### Supply Chain Tracking
+- **Unique tracking IDs** (format: `LL-{timestamp}-{random}`)
+- **Chain of custody** with hash-linked custody entries
+- **Cold chain monitoring** (temperature + humidity at each checkpoint)
+- **Anti-counterfeit verification** via blockchain data hash comparison
+- Status tracking: created, in_transit, at_checkpoint, delivered, recalled
+- Blockchain-anchored data integrity
 
-### Real-Time Updates
-- WebSocket (Socket.IO) for live block/transaction events
-- Live feed dashboard with event streaming
-- Network visualization with block chain links and validator nodes
+### Audit Trail
+- **Hash-chained audit logs** (SHA-256 linking for tamper detection)
+- Captures: userId, action, entityType, entityId, ipAddress, userAgent
+- Chain integrity verification endpoint (admin only)
+- HIPAA-compatible audit logging
+
+### Token Market & Purchases
+- **Live prices from Binance API** (ETH, BTC, SOL, BNB, MATIC, USDT, USDC, DAI)
+- **Historical price data** (klines/candlestick endpoint for charts)
+- 30-second price caching to respect rate limits
+- Stripe Checkout for USD-to-token purchases
+- Automatic wallet crediting at market price
+
+### Real-Time WebSocket Events
+- `new-block` - Block mined with full details
+- `new-transaction` - Transaction broadcast
+- `mempool-update` - Mempool size changes
+- `stats-update` - Network statistics
 
 ## Quick Start
 
 ### Prerequisites
 - Node.js 18+
-- PostgreSQL
-- pnpm (backend) / npm (frontend)
+- PostgreSQL 15+
+- pnpm
 
-### Backend
+### Setup
 ```bash
 cd ledger-link-backend
-cp .env.example .env  # Edit with your API keys
+cp .env.example .env   # Edit with your API keys
 pnpm install
-pnpm dev
+pnpm dev               # Starts on http://localhost:3000
 ```
 
-### Frontend
+### Docker
 ```bash
-cd ledger-link-frontend
-npm install
-npm run dev
+docker build -t ledgerlink-backend .
+docker run -p 3000:3000 --env-file .env ledgerlink-backend
 ```
 
-Backend runs on http://localhost:3000, Frontend on http://localhost:3001
-
-## Project Structure (Backend)
+## Project Structure
 
 ```
 src/
-  config/          # Database, JWT, Swagger configuration
-  controllers/     # API route handlers
-  entities/        # TypeORM database entities
-  middleware/      # Auth, rate limiting, error handling
-  repositories/    # Database query helpers
-  services/        # Business logic
-  utils/           # Logger, helpers
-  index.ts         # Entry point
-database/          # SQL migration scripts
-docs/              # Documentation guides
+  config/           # Database, JWT, Swagger config
+  controllers/      # Route handlers (auth, wallets, blockchain, ai, health, supply-chain, etc.)
+  entities/         # TypeORM entities (User, Wallet, WalletBalance, Transaction, Block, etc.)
+  middleware/       # Auth (JWT), rate limiting, error handling
+  repositories/     # Database query helpers
+  services/         # Business logic (SimulatedBlockchain, AI, ZKProof, Audit, Health, SupplyChain, etc.)
+  utils/            # Logger, helpers
+  index.ts          # Express app entry point
 ```
-
-## Dashboard Pages (17 pages)
-
-| Page | Route | Description |
-|------|-------|-------------|
-| Overview | /dashboard | Portfolio overview, recent transactions |
-| Wallets | /dashboard/wallets | Create/manage wallets, faucet |
-| Portfolio | /dashboard/portfolio | Token distribution, balances |
-| Buy Tokens | /dashboard/buy | Stripe + Binance token purchase |
-| Send | /dashboard/send | Send transactions |
-| Receive | /dashboard/receive | Payment requests, QR codes |
-| Transactions | /dashboard/transactions | Transaction history |
-| Explorer | /dashboard/explorer | Public ledger explorer |
-| Block Explorer | /dashboard/blocks | Blocks, mempool, network stats |
-| Live Feed | /dashboard/live | Real-time WebSocket event stream |
-| Network | /dashboard/network | Chain visualization, validators |
-| AI Insights | /dashboard/ai | AI analysis, risk scoring, fraud detection |
-| Privacy | /dashboard/privacy | ZK proof generation and verification |
-| Health Records | /dashboard/health | Encrypted medical records |
-| Supply Chain | /dashboard/supply-chain | Item tracking, chain of custody |
-| Settings | /dashboard/settings | User profile |
 
 ## API Endpoints (60+)
 
 ### Auth
-- `POST /api/auth/register` - Register
-- `POST /api/auth/login` - Login
-- `GET /api/auth/me` - Current user
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/register` | Register with email/password |
+| POST | `/api/auth/login` | Login with email/password |
+| POST | `/api/auth/wallet/connect` | Get message for wallet signing |
+| POST | `/api/auth/wallet/authenticate` | Authenticate with wallet signature |
+| POST | `/api/auth/refresh` | Refresh JWT token |
+| GET | `/api/auth/me` | Get current user |
 
 ### Wallets & Transactions
-- `POST /api/wallets/create` - Create wallet
-- `POST /api/wallets/:id/send` - Send transaction
-- `POST /api/wallets/:id/faucet` - Get test tokens
-- `GET /api/ledger/transactions` - Public explorer
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/wallets/create` | Create simulated wallet |
+| GET | `/api/wallets` | Get user's wallets with balances |
+| POST | `/api/wallets/:id/send` | Send transaction |
+| POST | `/api/wallets/:id/faucet` | Get test tokens |
+| GET | `/api/transactions` | User transaction history |
+| GET | `/api/transactions/:id` | Transaction details |
 
 ### Blockchain
-- `GET /api/blockchain/blocks` - List blocks (paginated)
-- `GET /api/blockchain/blocks/latest` - Latest block
-- `GET /api/blockchain/blocks/:id` - Block by number or hash
-- `GET /api/blockchain/blocks/:number/transactions` - Block transactions
-- `GET /api/blockchain/mempool` - Current mempool
-- `GET /api/blockchain/stats` - Network statistics
-- `GET /api/blockchain/verify` - Verify chain integrity
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/blockchain/blocks` | List blocks (paginated) |
+| GET | `/api/blockchain/blocks/latest` | Latest block |
+| GET | `/api/blockchain/blocks/:id` | Block by number or hash |
+| GET | `/api/blockchain/mempool` | Current mempool |
+| GET | `/api/blockchain/stats` | Network statistics |
+| GET | `/api/blockchain/verify` | Verify chain integrity |
 
-### AI Analytics (requires auth)
-- `GET /api/ai/analyze/:txId` - Analyze transaction for anomalies
-- `GET /api/ai/insights` - User spending insights
-- `GET /api/ai/risk-score/:address` - Address risk profiling
-- `POST /api/ai/detect-fraud` - Batch fraud detection
-- `GET /api/ai/portfolio` - AI portfolio insights
+### AI Analytics
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/ai/insights` | Spending insights |
+| GET | `/api/ai/portfolio` | Portfolio analysis |
+| GET | `/api/ai/risk-score/:address` | Address risk profiling |
+| GET | `/api/ai/analyze/:txId` | Transaction anomaly detection |
+| POST | `/api/ai/detect-fraud` | Batch fraud detection |
 
-### Privacy & ZK Proofs (requires auth)
-- `POST /api/privacy/zk/proof-of-knowledge` - Generate proof of knowledge
-- `POST /api/privacy/zk/range-proof` - Generate range proof
-- `POST /api/privacy/zk/membership-proof` - Generate membership proof
-- `POST /api/privacy/zk/integrity-proof` - Generate data integrity proof
-- `GET /api/privacy/zk/verify/:proofId` - Verify a proof
-- `GET /api/privacy/zk/proofs` - List all proofs
+### Privacy / ZK Proofs
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/privacy/zk/proof-of-knowledge` | Generate proof of knowledge |
+| POST | `/api/privacy/zk/range-proof` | Generate range proof |
+| POST | `/api/privacy/zk/membership-proof` | Generate membership proof |
+| POST | `/api/privacy/zk/integrity-proof` | Generate integrity proof |
+| GET | `/api/privacy/zk/verify/:proofId` | Verify a proof |
+| GET | `/api/privacy/zk/proofs` | List all proofs |
 
-### Audit Trail (requires auth)
-- `GET /api/audit/logs` - Get audit logs (filtered, paginated)
-- `GET /api/audit/verify` - Verify audit chain integrity (admin)
-- `GET /api/audit/stats` - Audit statistics
+### Healthcare Records
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/health-records` | Create encrypted record |
+| GET | `/api/health-records/:id` | Get record (decrypted, access-controlled) |
+| GET | `/api/health-records/patient/:patientId` | Patient's records |
+| POST | `/api/health-records/:id/grant-access` | Grant access |
+| GET | `/api/health-records/:id/verify` | Verify integrity |
 
-### Healthcare Records (requires auth)
-- `POST /api/health-records` - Create encrypted health record
-- `GET /api/health-records/:id` - Get record (decrypted, access-controlled)
-- `GET /api/health-records/patient/:patientId` - Get patient's records
-- `POST /api/health-records/:id/grant-access` - Grant access to record
-- `POST /api/health-records/:id/revoke-access` - Revoke access
-- `GET /api/health-records/:id/verify` - Verify record integrity
-- `GET /api/health-records/stats/overview` - Record statistics
+### Supply Chain
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/supply-chain/items` | Register item |
+| GET | `/api/supply-chain/items/:trackingId` | Get item details |
+| GET | `/api/supply-chain/my-items` | User's items |
+| POST | `/api/supply-chain/items/:trackingId/transfer` | Transfer ownership |
+| POST | `/api/supply-chain/items/:trackingId/checkpoint` | Add checkpoint |
+| GET | `/api/supply-chain/items/:trackingId/verify` | Verify integrity |
 
-### Supply Chain (requires auth)
-- `POST /api/supply-chain/items` - Register new item
-- `GET /api/supply-chain/items/:trackingId` - Get item details
-- `GET /api/supply-chain/my-items` - Get user's items
-- `POST /api/supply-chain/items/:trackingId/transfer` - Transfer item
-- `POST /api/supply-chain/items/:trackingId/checkpoint` - Update checkpoint
-- `GET /api/supply-chain/items/:trackingId/verify` - Verify chain integrity
-- `GET /api/supply-chain/stats` - Supply chain statistics
+### Market / Token Purchase
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/market/prices` | All live token prices (Binance) |
+| GET | `/api/market/prices/:symbol` | Single token price |
+| GET | `/api/market/klines/:symbol` | Historical price data (candlesticks) |
+| GET | `/api/market/tokens` | Supported tokens list |
+| POST | `/api/market/checkout` | Create Stripe checkout |
+| POST | `/api/market/verify-payment` | Verify & fulfill payment |
 
-### Market / Token Purchase (auth for checkout)
-- `GET /api/market/prices` - All live token prices (Binance)
-- `GET /api/market/prices/:symbol` - Single token price
-- `GET /api/market/tokens` - Supported tokens list
-- `POST /api/market/checkout` - Create Stripe checkout session
-- `POST /api/market/verify-payment` - Verify & fulfill payment
-- `POST /api/market/webhook` - Stripe webhook handler
-- `GET /api/market/purchases` - User purchase history
-- `GET /api/market/purchases/stats` - Purchase statistics
+### Audit Trail
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/audit/logs` | Get audit logs (filtered) |
+| GET | `/api/audit/verify` | Verify audit chain (admin) |
+| GET | `/api/audit/stats` | Audit statistics |
 
-## Database Tables
+## Database Schema (10 Tables)
 
-| Table | Records |
+| Table | Purpose |
 |-------|---------|
-| users | User accounts with roles |
-| wallets | Simulated crypto wallets |
-| wallet_balances | Token balances per wallet |
-| transactions | All blockchain transactions |
-| blocks | Mined blocks (blockchain) |
-| payment_requests | Payment request links |
-| audit_logs | Hash-chained audit trail |
-| health_records | Encrypted healthcare records |
-| supply_chain_items | Supply chain items |
-| token_purchases | Stripe payment records |
+| `users` | Accounts with roles (user, admin, provider, patient, auditor) |
+| `wallets` | Simulated crypto wallets (Ethereum-format addresses) |
+| `wallet_balances` | Token balances per wallet (decimal 36,18 precision) |
+| `transactions` | All blockchain transactions with status tracking |
+| `blocks` | Mined blocks (PoS, Merkle root, gas, rewards) |
+| `payment_requests` | Payment request links with expiration |
+| `audit_logs` | Hash-chained immutable audit trail |
+| `health_records` | AES-256-CBC encrypted medical records |
+| `supply_chain_items` | Product tracking with chain of custody |
+| `token_purchases` | Stripe payment records |
 
 ## Environment Variables
 
-### Backend (.env)
 ```env
 PORT=3000
 DB_HOST=localhost
@@ -226,17 +247,16 @@ DB_PORT=5432
 DB_USERNAME=postgres
 DB_PASSWORD=postgres
 DB_NAME=ledger_link
-JWT_SECRET=your-secret
+JWT_SECRET=your-secret-key
+JWT_EXPIRES_IN=86400
+ENCRYPTION_KEY=your-32-char-key
+FRONTEND_URL=http://localhost:3001
 GROQ_API_KEY=your-groq-key
+GROQ_API_KEY_2=your-backup-groq-key
 GEMINI_API_KEY=your-gemini-key
 BINANCE_API_KEY=your-binance-key
+BINANCE_API_SECRET=your-binance-secret
 STRIPE_SECRET_KEY=sk_test_your-stripe-key
-FRONTEND_URL=http://localhost:3001
-```
-
-### Frontend (.env.local)
-```env
-NEXT_PUBLIC_API_URL=http://localhost:3000/api
 ```
 
 ## Scripts
@@ -247,26 +267,17 @@ pnpm build        # Compile TypeScript
 pnpm start        # Run compiled output
 pnpm test         # Run tests
 pnpm type-check   # TypeScript check
-pnpm lint         # ESLint
-pnpm format       # Prettier
 ```
 
-## Documentation
+## Related Repositories
 
-- [Development Progress](docs/DEVELOPMENT_PROGRESS.md) - Full feature tracker with all phases
-- [Testing Guide](docs/TESTING_GUIDE.md) - Step-by-step guide to test every feature via the UI
-- [Quick Start](docs/QUICK_START.md) - Quick start guide
-- [Setup Guide](docs/SETUP_GUIDE.md) - Detailed setup instructions
-- [Authentication Guide](docs/AUTHENTICATION_GUIDE.md) - Auth system details
-- [Deployment](docs/DEPLOYMENT.md) - Deployment guide
-- [Research Paper I](docs/Project_II_Research_Paper_I.pdf) - Blockchain scalability & Layer-2 integration
-- [Research Paper II](docs/Project_II_Research_Paper_II.pdf) - Privacy-preserving framework for healthcare & supply chain
+- [Ledger Link Frontend](https://github.com/shubham996633/ledger-link-frontend) - Next.js 14 dashboard with dark theme, price charts, and 25+ pages
+- [Ledger Link Documentation](https://github.com/shubham996633/ledgerlink_documentation) - Research papers and project documentation
 
 ## Research Papers
 
 ### Paper I: Scalable Blockchain Platform with Smart Contract Automation and Layer-2 Integration
-Covers the core blockchain architecture, Ethereum-based smart contracts, Arbitrum Layer-2 rollups, PoS consensus, Merkle tree transaction roots, dynamic gas calculation, transaction mempool, and 10x throughput improvements with 90-95% gas cost reduction.
+Covers PoS consensus, Merkle trees, dynamic gas, mempool, Arbitrum L2 rollups, 10x throughput improvement, 90-95% gas cost reduction.
 
 ### Paper II: Privacy-Preserving Blockchain Framework for Healthcare and Supply Chain
-Covers zero-knowledge proofs (knowledge, range, membership, integrity), role-based access control, AES-256-CBC encryption, hash-chained audit trails, encrypted healthcare records with patient-controlled access, supply chain tracking with chain of custody, temperature/humidity monitoring, and HIPAA/GDPR compliance.
-
+Covers zero-knowledge proofs, RBAC, AES-256 encryption, hash-chained audit trails, encrypted healthcare records, supply chain tracking with cold chain monitoring, HIPAA/GDPR compliance.
