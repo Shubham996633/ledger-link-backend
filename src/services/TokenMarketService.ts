@@ -19,10 +19,13 @@ interface BinanceTickerResponse {
 export class TokenMarketService {
   private apiKey: string;
   private apiSecret: string;
+  private twelveDataKey: string;
   private binanceUrl = 'https://api.binance.com';
   private coingeckoUrl = 'https://api.coingecko.com/api/v3';
+  private twelveDataUrl = 'https://api.twelvedata.com';
   private priceCache: Map<string, { price: TokenPrice; cachedAt: number }> = new Map();
-  private cacheTTL = 60000; // 60 seconds (CoinGecko free tier is rate-limited)
+  private cacheTTL = 120000; // 2 min
+  private inflightBatch: Promise<Record<string, TokenPrice>> | null = null;
 
   // Map our token symbols to Binance trading pairs
   private symbolMap: Record<string, string> = {
@@ -51,6 +54,39 @@ export class TokenMarketService {
   constructor() {
     this.apiKey = process.env.BINANCE_API_KEY || '';
     this.apiSecret = process.env.BINANCE_API_SECRET || '';
+    this.twelveDataKey = process.env.TWELVE_DATA_API_KEY || '';
+  }
+
+  private async fetchFromTwelveData(symbols: string[]): Promise<Record<string, TokenPrice>> {
+    if (!this.twelveDataKey) return {};
+    const pairs = symbols
+      .filter(s => !this.stablecoins.includes(s.toUpperCase()))
+      .map(s => `${s.toUpperCase()}/USD`);
+    if (pairs.length === 0) return {};
+
+    const response = await axios.get(`${this.twelveDataUrl}/price`, {
+      params: { symbol: pairs.join(','), apikey: this.twelveDataKey },
+      timeout: 7000,
+    });
+
+    const data = response.data;
+    const result: Record<string, TokenPrice> = {};
+    for (const sym of symbols) {
+      const upper = sym.toUpperCase();
+      const key = `${upper}/USD`;
+      const entry = data[key] || (pairs.length === 1 ? data : null);
+      const priceStr = entry?.price;
+      if (priceStr) {
+        result[upper] = {
+          symbol: upper,
+          price: parseFloat(priceStr),
+          change24h: 0,
+          volume24h: 0,
+          lastUpdated: Date.now(),
+        };
+      }
+    }
+    return result;
   }
 
   private async fetchFromCoinGecko(symbols: string[]): Promise<Record<string, TokenPrice>> {
@@ -125,6 +161,18 @@ export class TokenMarketService {
       logger.warn(`CoinGecko failed for ${upperSymbol}: ${error.message}`);
     }
 
+    // Fallback: Twelve Data
+    try {
+      const td = await this.fetchFromTwelveData([upperSymbol]);
+      if (td[upperSymbol]) {
+        this.priceCache.set(upperSymbol, { price: td[upperSymbol], cachedAt: Date.now() });
+        logger.info(`Fetched ${upperSymbol} price (Twelve Data): $${td[upperSymbol].price}`);
+        return td[upperSymbol];
+      }
+    } catch (error: any) {
+      logger.warn(`Twelve Data failed for ${upperSymbol}: ${error.message}`);
+    }
+
     // Fallback: Binance (works locally, blocked on Render)
     const binancePair = this.symbolMap[upperSymbol];
     if (binancePair) {
@@ -161,16 +209,51 @@ export class TokenMarketService {
   async getAllPrices(): Promise<TokenPrice[]> {
     const symbols = Object.keys(this.symbolMap);
     const nonStable = symbols.filter(s => !this.stablecoins.includes(s));
+    const now = Date.now();
 
-    // Batch fetch from CoinGecko in one call
-    let batch: Record<string, TokenPrice> = {};
-    try {
-      batch = await this.fetchFromCoinGecko(nonStable);
-      for (const [sym, price] of Object.entries(batch)) {
-        this.priceCache.set(sym, { price, cachedAt: Date.now() });
+    // If all non-stable prices are cached and fresh, return immediately — no API hit
+    const allFresh = nonStable.every(s => {
+      const c = this.priceCache.get(s);
+      return c && now - c.cachedAt < this.cacheTTL;
+    });
+
+    if (!allFresh) {
+      // Dedupe concurrent callers onto one in-flight batch request
+      if (!this.inflightBatch) {
+        this.inflightBatch = (async () => {
+          // Try CoinGecko first
+          try {
+            const batch = await this.fetchFromCoinGecko(nonStable);
+            if (Object.keys(batch).length > 0) {
+              for (const [sym, price] of Object.entries(batch)) {
+                this.priceCache.set(sym, { price, cachedAt: Date.now() });
+              }
+              return batch;
+            }
+          } catch (error: any) {
+            logger.warn(`CoinGecko batch failed: ${error.message}`);
+          }
+
+          // Fallback: Twelve Data
+          try {
+            const batch = await this.fetchFromTwelveData(nonStable);
+            if (Object.keys(batch).length > 0) {
+              for (const [sym, price] of Object.entries(batch)) {
+                this.priceCache.set(sym, { price, cachedAt: Date.now() });
+              }
+              logger.info(`Fetched batch prices (Twelve Data)`);
+              return batch;
+            }
+          } catch (error: any) {
+            logger.warn(`Twelve Data batch failed: ${error.message}`);
+          }
+
+          return {};
+        })().finally(() => {
+          this.inflightBatch = null;
+        });
       }
-    } catch (error: any) {
-      logger.warn(`CoinGecko batch failed: ${error.message}`);
+      await this.inflightBatch;
     }
 
     return symbols.map(s => {
@@ -178,7 +261,6 @@ export class TokenMarketService {
       if (this.stablecoins.includes(upper)) {
         return { symbol: upper, price: 1, change24h: 0, volume24h: 0, lastUpdated: Date.now() };
       }
-      if (batch[upper]) return batch[upper];
       const cached = this.priceCache.get(upper);
       if (cached) return cached.price;
       return this.getFallbackPrice(upper);
