@@ -56,7 +56,8 @@ export class SimulatedBlockchainService {
   private transactionRepository: Repository<Transaction>;
   private mempool: MempoolTransaction[] = [];
   private miningInterval: NodeJS.Timeout | null = null;
-  private readonly BLOCK_TIME_MS = 12000; // ~12 seconds like Ethereum
+  private readonly BLOCK_TIME_MS = parseInt(process.env.BLOCK_TIME_MS || '12000', 10);
+  private readonly MINE_EMPTY_BLOCKS = process.env.MINE_EMPTY_BLOCKS !== 'false';
   private readonly MAX_TRANSACTIONS_PER_BLOCK = 50;
   private readonly GENESIS_MINER = '0x0000000000000000000000000000000000000000';
   private readonly NETWORK_MINER = '0x4c65646765724c696e6b4d696e657200000000'; // "LedgerLinkMiner"
@@ -421,6 +422,8 @@ export class SimulatedBlockchainService {
    */
   async processMempool(): Promise<Block | null> {
     if (this.mempool.length === 0) {
+      if (!this.MINE_EMPTY_BLOCKS) return null;
+
       // Mine empty block occasionally (like real blockchain)
       const latestBlock = await this.getLatestBlock();
       if (!latestBlock) return null;
