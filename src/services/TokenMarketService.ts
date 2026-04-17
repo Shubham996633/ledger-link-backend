@@ -24,8 +24,11 @@ export class TokenMarketService {
   private coingeckoUrl = 'https://api.coingecko.com/api/v3';
   private twelveDataUrl = 'https://api.twelvedata.com';
   private priceCache: Map<string, { price: TokenPrice; cachedAt: number }> = new Map();
+  private klinesCache: Map<string, { data: any[]; cachedAt: number }> = new Map();
   private cacheTTL = 120000; // 2 min
+  private klinesTTL = 600000; // 10 min — charts don't need sub-minute freshness
   private inflightBatch: Promise<Record<string, TokenPrice>> | null = null;
+  private inflightKlines: Map<string, Promise<any[]>> = new Map();
 
   // Map our token symbols to Binance trading pairs
   private symbolMap: Record<string, string> = {
@@ -288,20 +291,50 @@ export class TokenMarketService {
 
   async getKlines(symbol: string, interval: string = '1d', limit: number = 30): Promise<any[]> {
     const upperSymbol = symbol.toUpperCase();
+    const cacheKey = `${upperSymbol}-${interval}-${limit}`;
+    const now = Date.now();
 
-    // Stablecoins don't have meaningful price charts
+    // Cache check
+    const cached = this.klinesCache.get(cacheKey);
+    if (cached && now - cached.cachedAt < this.klinesTTL) {
+      return cached.data;
+    }
+
+    // Stablecoins: synthetic flat chart
     if (this.stablecoins.includes(upperSymbol)) {
-      const now = Date.now();
-      return Array.from({ length: limit }, (_, i) => ({
+      const data = Array.from({ length: limit }, (_, i) => ({
         time: now - (limit - i) * 86400000,
         open: 1, high: 1.001, low: 0.999, close: 1, volume: 0,
       }));
+      this.klinesCache.set(cacheKey, { data, cachedAt: now });
+      return data;
     }
 
+    // Dedupe concurrent requests for the same key
+    const existing = this.inflightKlines.get(cacheKey);
+    if (existing) return existing;
+
+    const promise = this.fetchKlines(upperSymbol, interval, limit).then(data => {
+      if (data.length > 0) {
+        this.klinesCache.set(cacheKey, { data, cachedAt: Date.now() });
+      } else if (cached) {
+        // All sources failed — return stale cache if we have it
+        return cached.data;
+      }
+      return data;
+    }).finally(() => {
+      this.inflightKlines.delete(cacheKey);
+    });
+
+    this.inflightKlines.set(cacheKey, promise);
+    return promise;
+  }
+
+  private async fetchKlines(upperSymbol: string, interval: string, limit: number): Promise<any[]> {
     const cgId = this.coingeckoMap[upperSymbol];
     const days = interval === '1h' ? 1 : interval === '4h' ? 7 : 30;
 
-    // Try CoinGecko first
+    // Try CoinGecko
     if (cgId) {
       try {
         const response = await axios.get(`${this.coingeckoUrl}/coins/${cgId}/market_chart`, {
@@ -312,10 +345,7 @@ export class TokenMarketService {
         const volumes: [number, number][] = response.data.total_volumes || [];
         return prices.slice(-limit).map(([time, price], i) => ({
           time,
-          open: price,
-          high: price,
-          low: price,
-          close: price,
+          open: price, high: price, low: price, close: price,
           volume: volumes[i]?.[1] ?? 0,
         }));
       } catch (error: any) {
@@ -323,29 +353,58 @@ export class TokenMarketService {
       }
     }
 
-    // Fallback to Binance
-    const binancePair = this.symbolMap[upperSymbol];
-    if (!binancePair) return [];
-
-    try {
-      const response = await axios.get(`${this.binanceUrl}/api/v3/klines`, {
-        params: { symbol: binancePair, interval, limit },
-        headers: this.apiKey ? { 'X-MBX-APIKEY': this.apiKey } : {},
-        timeout: 5000,
-      });
-
-      return response.data.map((k: any[]) => ({
-        time: k[0],
-        open: parseFloat(k[1]),
-        high: parseFloat(k[2]),
-        low: parseFloat(k[3]),
-        close: parseFloat(k[4]),
-        volume: parseFloat(k[5]),
-      }));
-    } catch (error: any) {
-      logger.warn(`Binance klines failed for ${upperSymbol}: ${error.message}`);
-      return [];
+    // Try Twelve Data
+    if (this.twelveDataKey) {
+      try {
+        const tdInterval = interval === '1h' ? '1h' : interval === '4h' ? '4h' : '1day';
+        const response = await axios.get(`${this.twelveDataUrl}/time_series`, {
+          params: {
+            symbol: `${upperSymbol}/USD`,
+            interval: tdInterval,
+            outputsize: limit,
+            apikey: this.twelveDataKey,
+          },
+          timeout: 8000,
+        });
+        const values: any[] = response.data.values || [];
+        if (values.length > 0) {
+          return values.slice().reverse().map(v => ({
+            time: new Date(v.datetime).getTime(),
+            open: parseFloat(v.open),
+            high: parseFloat(v.high),
+            low: parseFloat(v.low),
+            close: parseFloat(v.close),
+            volume: parseFloat(v.volume || '0'),
+          }));
+        }
+      } catch (error: any) {
+        logger.warn(`Twelve Data klines failed for ${upperSymbol}: ${error.message}`);
+      }
     }
+
+    // Fallback: Binance
+    const binancePair = this.symbolMap[upperSymbol];
+    if (binancePair) {
+      try {
+        const response = await axios.get(`${this.binanceUrl}/api/v3/klines`, {
+          params: { symbol: binancePair, interval, limit },
+          headers: this.apiKey ? { 'X-MBX-APIKEY': this.apiKey } : {},
+          timeout: 5000,
+        });
+        return response.data.map((k: any[]) => ({
+          time: k[0],
+          open: parseFloat(k[1]),
+          high: parseFloat(k[2]),
+          low: parseFloat(k[3]),
+          close: parseFloat(k[4]),
+          volume: parseFloat(k[5]),
+        }));
+      } catch (error: any) {
+        logger.warn(`Binance klines failed for ${upperSymbol}: ${error.message}`);
+      }
+    }
+
+    return [];
   }
 
   private getFallbackPrice(symbol: string): TokenPrice {
