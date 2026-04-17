@@ -44,8 +44,17 @@ const PORT = process.env.PORT || 3000;
 
 // Security middleware
 app.use(helmet());
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'https://ledger-link-frontend.onrender.com',
+  ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
+];
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3001',
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error(`CORS blocked: ${origin}`));
+  },
   credentials: true,
 }));
 
@@ -126,6 +135,17 @@ async function startServer() {
       logger.info(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
       logger.info(`🔌 WebSocket server ready on /ws`);
     });
+
+    const selfUrl = process.env.RENDER_EXTERNAL_URL || process.env.SELF_URL;
+    if (selfUrl) {
+      const pingEvery = 10 * 60 * 1000;
+      setInterval(() => {
+        fetch(`${selfUrl}/api/health`)
+          .then((r) => logger.info(`keepalive ping ${selfUrl}/api/health -> ${r.status}`))
+          .catch((e) => logger.warn(`keepalive ping failed: ${e.message}`));
+      }, pingEvery);
+      logger.info(`🫀 Keep-alive self-ping every 10 min to ${selfUrl}/api/health`);
+    }
   } catch (error) {
     logger.error('Failed to start server:', error);
     process.exit(1);
