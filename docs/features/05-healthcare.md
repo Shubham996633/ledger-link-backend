@@ -26,29 +26,26 @@ Our combination solves each:
 
 ```mermaid
 flowchart LR
-    subgraph Input
-        P[Plaintext JSON<br/>e.g. diagnosis, dosage]
-    end
+    P[Plaintext JSON<br/>e.g. diagnosis, dosage]
 
-    subgraph Encrypt[HealthRecordService.createRecord]
-        H[dataHash = SHA256&#40;plaintext&#41;]
-        E[encrypted = AES-256-CBC&#40;plaintext, key, iv&#41;]
+    subgraph Encrypt["HealthRecordService.createRecord"]
+        H[dataHash = SHA256 plaintext]
+        E[encrypted = AES-256-CBC]
         Z[zkProofId = ZK integrity proof]
     end
 
-    subgraph Anchor[Blockchain anchor]
+    subgraph Anchor["Blockchain anchor"]
         L[latestBlock.hash]
         N[latestBlock.blockNumber]
     end
 
-    subgraph DB[(health_records table)]
-        ROW[encryptedData<br/>encryptionIv<br/>dataHash<br/>blockHash<br/>blockNumber<br/>zkProofId<br/>accessControl JSONB]
-    end
+    ROW[(health_records row<br/>encryptedData, encryptionIv,<br/>dataHash, blockHash, blockNumber,<br/>zkProofId, accessControl JSONB)]
 
     P --> H
     P --> E
     P --> Z
-    Anchor --> ROW
+    L --> ROW
+    N --> ROW
     H --> ROW
     E --> ROW
     Z --> ROW
