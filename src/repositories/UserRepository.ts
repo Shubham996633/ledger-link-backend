@@ -20,6 +20,14 @@ export class UserRepository {
     return this.repository.findOne({ where: { username } });
   }
 
+  async findByPasswordResetToken(token: string): Promise<User | null> {
+    return this.repository.findOne({ where: { passwordResetToken: token } });
+  }
+
+  async findByEmailVerificationToken(token: string): Promise<User | null> {
+    return this.repository.findOne({ where: { emailVerificationToken: token } });
+  }
+
   async create(userData: Partial<User>): Promise<User> {
     const user = this.repository.create(userData);
     return this.repository.save(user);

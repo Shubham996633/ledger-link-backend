@@ -44,13 +44,32 @@ export class DatabaseService {
     if (!this.dataSource) {
       throw new Error('Database not initialized');
     }
-    
+
     try {
       await this.dataSource.runMigrations();
       logger.info('Database migrations completed successfully');
     } catch (error) {
       logger.error('Failed to run migrations:', error);
       throw error;
+    }
+
+    // Idempotent column adds for ad-hoc schema changes (synchronize:false)
+    await this.ensureUserAuthColumns();
+  }
+
+  private async ensureUserAuthColumns(): Promise<void> {
+    if (!this.dataSource) return;
+    const stmts = [
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_token varchar`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_expires timestamp`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verification_token varchar`,
+    ];
+    for (const sql of stmts) {
+      try {
+        await this.dataSource.query(sql);
+      } catch (err: any) {
+        logger.warn(`ensureUserAuthColumns: ${err.message}`);
+      }
     }
   }
 

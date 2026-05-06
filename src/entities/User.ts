@@ -46,6 +46,15 @@ export class User {
   @Column({ type: 'varchar', nullable: true, name: 'password_hash' })
   passwordHash: string; // For email/password authentication
 
+  @Column({ type: 'varchar', nullable: true, name: 'password_reset_token' })
+  passwordResetToken: string;
+
+  @Column({ type: 'timestamp', nullable: true, name: 'password_reset_expires' })
+  passwordResetExpires: Date;
+
+  @Column({ type: 'varchar', nullable: true, name: 'email_verification_token' })
+  emailVerificationToken: string;
+
   // Relations
   @OneToMany(() => Wallet, wallet => wallet.user)
   wallets: Wallet[];

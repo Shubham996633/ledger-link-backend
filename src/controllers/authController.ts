@@ -11,6 +11,8 @@ import { DatabaseService } from '@/services/DatabaseService';
 import { logger } from '@/utils/logger';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
+import { EmailService } from '@/services/EmailService';
 
 const router = Router();
 
@@ -18,6 +20,7 @@ const router = Router();
 let authService: AuthService;
 let userRepository: UserRepository;
 let walletRepository: WalletRepository;
+let emailService: EmailService;
 
 function getServices() {
   if (!authService) {
@@ -25,8 +28,9 @@ function getServices() {
     userRepository = new UserRepository(dbService.getDataSource());
     walletRepository = new WalletRepository(dbService.getDataSource());
     authService = new AuthService(userRepository, walletRepository);
+    emailService = new EmailService();
   }
-  return { authService, userRepository, walletRepository };
+  return { authService, userRepository, walletRepository, emailService };
 }
 
 /**
@@ -373,6 +377,136 @@ router.get('/me', authenticateToken, asyncHandler(async (req: AuthenticatedReque
   } catch (error) {
     throw error;
   }
+}));
+
+/**
+ * POST /api/auth/forgot-password
+ * Send password reset email if account exists.
+ * Always returns 200 to avoid leaking which emails exist.
+ */
+router.post('/forgot-password', authRateLimiter, asyncHandler(async (req: Request, res: Response) => {
+  const { email } = req.body;
+  if (!email) {
+    res.status(400).json({ success: false, message: 'Email is required' });
+    return;
+  }
+
+  const { userRepository, emailService } = getServices();
+  const user = await userRepository.findByEmail(email);
+
+  if (user) {
+    const token = crypto.randomBytes(32).toString('hex');
+    const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    await userRepository.update(user.id, {
+      passwordResetToken: token,
+      passwordResetExpires: expires,
+    });
+
+    try {
+      await emailService.sendPasswordReset(user.email, token, user.firstName || user.username);
+    } catch (err: any) {
+      logger.error(`Failed to send reset email to ${user.email}: ${err.message}`);
+    }
+  }
+
+  res.json({
+    success: true,
+    message: 'If an account with that email exists, a reset link has been sent.',
+  });
+}));
+
+/**
+ * POST /api/auth/reset-password
+ * Set a new password using a reset token.
+ */
+router.post('/reset-password', authRateLimiter, asyncHandler(async (req: Request, res: Response) => {
+  const { token, password } = req.body;
+
+  if (!token || !password) {
+    res.status(400).json({ success: false, message: 'Token and password are required' });
+    return;
+  }
+  if (password.length < 8) {
+    res.status(400).json({ success: false, message: 'Password must be at least 8 characters' });
+    return;
+  }
+
+  const { userRepository } = getServices();
+  const user = await userRepository.findByPasswordResetToken(token);
+
+  if (!user || !user.passwordResetExpires || user.passwordResetExpires < new Date()) {
+    res.status(400).json({ success: false, message: 'Invalid or expired reset token' });
+    return;
+  }
+
+  const passwordHash = await bcrypt.hash(password, 10);
+  await userRepository.update(user.id, {
+    passwordHash,
+    passwordResetToken: null as any,
+    passwordResetExpires: null as any,
+  });
+
+  logger.info(`Password reset for user: ${user.email}`);
+  res.json({ success: true, message: 'Password has been reset. You can now sign in.' });
+}));
+
+/**
+ * POST /api/auth/send-verification-email
+ * Authenticated. Generate a token and email a verification link to the user.
+ */
+router.post('/send-verification-email', authenticateToken, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  const { userRepository, emailService } = getServices();
+  const user = await userRepository.findById(req.user!.userId);
+
+  if (!user) {
+    res.status(404).json({ success: false, message: 'User not found' });
+    return;
+  }
+  if (user.isEmailVerified) {
+    res.json({ success: true, message: 'Email already verified' });
+    return;
+  }
+
+  const token = crypto.randomBytes(32).toString('hex');
+  await userRepository.update(user.id, { emailVerificationToken: token });
+
+  try {
+    await emailService.sendEmailVerification(user.email, token, user.firstName || user.username);
+  } catch (err: any) {
+    logger.error(`Failed to send verification email to ${user.email}: ${err.message}`);
+    res.status(500).json({ success: false, message: 'Failed to send verification email' });
+    return;
+  }
+
+  res.json({ success: true, message: 'Verification email sent. Check your inbox.' });
+}));
+
+/**
+ * GET /api/auth/verify-email?token=...
+ * Mark the user's email as verified.
+ */
+router.get('/verify-email', asyncHandler(async (req: Request, res: Response) => {
+  const token = (req.query.token as string) || '';
+  if (!token) {
+    res.status(400).json({ success: false, message: 'Token is required' });
+    return;
+  }
+
+  const { userRepository } = getServices();
+  const user = await userRepository.findByEmailVerificationToken(token);
+
+  if (!user) {
+    res.status(400).json({ success: false, message: 'Invalid verification token' });
+    return;
+  }
+
+  await userRepository.update(user.id, {
+    isEmailVerified: true,
+    emailVerificationToken: null as any,
+  });
+
+  logger.info(`Email verified for user: ${user.email}`);
+  res.json({ success: true, message: 'Email verified successfully' });
 }));
 
 export default router;
