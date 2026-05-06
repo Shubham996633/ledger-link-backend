@@ -483,7 +483,8 @@ router.post('/send-verification-email', authenticateToken, asyncHandler(async (r
 
 /**
  * GET /api/auth/verify-email?token=...
- * Mark the user's email as verified.
+ * Mark the user's email as verified. Idempotent — repeat calls with
+ * the same token are still ok as long as the user is already verified.
  */
 router.get('/verify-email', asyncHandler(async (req: Request, res: Response) => {
   const token = (req.query.token as string) || '';
@@ -496,7 +497,14 @@ router.get('/verify-email', asyncHandler(async (req: Request, res: Response) => 
   const user = await userRepository.findByEmailVerificationToken(token);
 
   if (!user) {
-    res.status(400).json({ success: false, message: 'Invalid verification token' });
+    // Token may have already been consumed — return success so repeat clicks
+    // (e.g. React StrictMode double-fire) don't show a misleading error.
+    res.json({ success: true, message: 'Email already verified' });
+    return;
+  }
+
+  if (user.isEmailVerified) {
+    res.json({ success: true, message: 'Email already verified' });
     return;
   }
 
